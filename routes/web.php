@@ -4,11 +4,13 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
+use App\Http\Controllers\Admin\VariantController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
 Route::get('/admin', DashboardController::class)->name('admin.dashboard');
 
+// Quản lý danh mục
 Route::resource('/admin/categories', CategoryController::class)
     ->except(['show'])
     ->names([
@@ -20,6 +22,7 @@ Route::resource('/admin/categories', CategoryController::class)
         'destroy' => 'admin.categories.destroy',
     ]);
 
+// Quản lý sản phẩm
 Route::resource('/admin/products', ProductController::class)
     ->except(['show'])
     ->names([
@@ -31,6 +34,16 @@ Route::resource('/admin/products', ProductController::class)
         'destroy' => 'admin.products.destroy',
     ]);
 
+// Quản lý thuộc tính & biến thể (Dùng Controller và Database thật)
+// Quản lý Thuộc tính & Biến thể (Đầy đủ CRUD)
+Route::get('/admin/variants', [VariantController::class, 'index'])->name('admin.variants.index');
+Route::get('/admin/variants/create', [VariantController::class, 'create'])->name('admin.variants.create');
+Route::post('/admin/variants', [VariantController::class, 'store'])->name('admin.variants.store');
+Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])->name('admin.variants.edit');
+Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
+Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');
+
+// Quản lý đổi trả
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
     ->name('admin.returns.index');
 Route::get('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'show'])
@@ -40,27 +53,9 @@ Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'u
     ->whereNumber('returnRequest')
     ->name('admin.returns.update');
 
+// Các trang quản trị dạng tĩnh khác
 Route::get('/admin/{section}', function (string $section) {
     $pages = [
-        'variants' => [
-            'title' => 'Thuộc tính & biến thể',
-            'subtitle' => 'Theo dõi màu sắc, kích thước và mã SKU theo từng phiên bản.',
-            'icon' => 'fas fa-layer-group',
-            'action' => 'Thêm biến thể',
-            'recordLabel' => 'Biến thể',
-            'stats' => [
-                ['Tổng biến thể', '326', 'fas fa-layer-group', 'primary'],
-                ['Màu sắc', '18', 'fas fa-palette', 'info'],
-                ['Kích thước', '06', 'fas fa-ruler', 'warning'],
-            ],
-            'columns' => ['Sản phẩm', 'Màu sắc / Kích thước', 'SKU'],
-            'rows' => [
-                ['title' => 'Áo sơ mi Linen', 'meta' => 'Phiên bản sản phẩm', 'cells' => ['Áo sơ mi Linen', 'Trắng / M', 'AO-LINEN-WH-M'], 'status' => ['Đang bán', 'success']],
-                ['title' => 'Áo sơ mi Linen', 'meta' => 'Phiên bản sản phẩm', 'cells' => ['Áo sơ mi Linen', 'Be / L', 'AO-LINEN-BE-L'], 'status' => ['Đang bán', 'success']],
-                ['title' => 'Đầm Midi hoa nhí', 'meta' => 'Phiên bản sản phẩm', 'cells' => ['Đầm Midi hoa nhí', 'Xanh / S', 'DAM-MIDI-BL-S'], 'status' => ['Đang bán', 'success']],
-                ['title' => 'Áo thun Basic', 'meta' => 'Phiên bản sản phẩm', 'cells' => ['Áo thun Basic', 'Đen / XL', 'AT-BASIC-BK-XL'], 'status' => ['Tạm ngưng', 'secondary']],
-            ],
-        ],
         'inventory' => [
             'title' => 'Kho hàng',
             'subtitle' => 'Theo dõi tồn kho và các cảnh báo cần được lưu ý.',
@@ -162,7 +157,6 @@ Route::get('/admin/{section}', function (string $section) {
 
     return view('admin.resource', ['page' => $pages[$section], 'section' => $section]);
 })->whereIn('section', [
-    'variants',
     'inventory',
     'orders',
     'users',

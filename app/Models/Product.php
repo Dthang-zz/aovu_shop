@@ -52,4 +52,8 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class, 'san_pham_id')->orderBy('thu_tu');
     }
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class, 'product_id', 'id');
+    }
 }
