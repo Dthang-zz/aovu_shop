@@ -4,13 +4,8 @@
 
 @section('content')
 @php
-$orderStatuses = [
-0 => ['Chờ xác nhận', 'warning'],
-1 => ['Đang xử lý', 'primary'],
-2 => ['Đang giao', 'info'],
-3 => ['Hoàn thành', 'success'],
-4 => ['Đã hủy', 'secondary'],
-];
+$orderStatuses = \App\OrderStatus::labels();
+$orderStatusBadges = \App\OrderStatus::badges();
 @endphp
 <div class="row">
     <div class="col-lg-3 col-6">
@@ -32,7 +27,7 @@ $orderStatuses = [
                 <span class="text-muted small">Đơn được tạo trong ngày</span>
             </div>
             <div class="icon text-info"><i class="fas fa-shopping-bag"></i></div>
-            <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="small-box-footer text-primary">Xem đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('admin.orders.index') }}" class="small-box-footer text-primary">Xem đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
     <div class="col-lg-3 col-6">
@@ -43,7 +38,7 @@ $orderStatuses = [
                 <span class="text-warning small"><i class="fas fa-clock"></i> Đơn chờ xác nhận</span>
             </div>
             <div class="icon text-warning"><i class="fas fa-clipboard-list"></i></div>
-            <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="small-box-footer text-primary">Xử lý đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('admin.orders.index', ['status' => 0]) }}" class="small-box-footer text-primary">Xử lý đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
     <div class="col-lg-3 col-6">
@@ -89,7 +84,7 @@ $orderStatuses = [
         <div class="card">
             <div class="card-header border-0 d-flex justify-content-between align-items-center">
                 <h3 class="card-title"><i class="fas fa-shopping-bag text-primary mr-2"></i>Đơn hàng mới</h3>
-                <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="btn btn-sm btn-outline-primary">Tất cả đơn hàng</a>
+                <a href="{{ route('admin.orders.index') }}" class="btn btn-sm btn-outline-primary">Tất cả đơn hàng</a>
             </div>
             <div class="card-body table-responsive p-0">
                 <table class="table table-hover text-nowrap mb-0">
@@ -104,13 +99,16 @@ $orderStatuses = [
                     </thead>
                     <tbody>
                         @forelse ($latestOrders as $order)
-                        @php($status = $orderStatuses[$order->trang_thai] ?? ['Không xác định', 'secondary'])
+                        @php
+                            $statusLabel = $orderStatuses[$order->trang_thai] ?? 'Không xác định';
+                            $statusBadge = $orderStatusBadges[$order->trang_thai] ?? 'secondary';
+                        @endphp
                         <tr>
                             <td class="font-weight-bold">{{ $order->ma_don_hang }}</td>
                             <td>{{ $order->ten_nguoi_nhan ?: 'Khách hàng' }}</td>
                             <td>{{ $order->ngay_dat ? \Illuminate\Support\Carbon::parse($order->ngay_dat)->format('H:i, d/m/Y') : '—' }}</td>
                             <td>₫ {{ number_format((float) $order->tong_tien, 0, ',', '.') }}</td>
-                            <td><span class="badge badge-{{ $status[1] }} px-2 py-1">{{ $status[0] }}</span></td>
+                            <td><span class="badge badge-{{ $statusBadge }} px-2 py-1">{{ $statusLabel }}</span></td>
                         </tr>
                         @empty
                         <tr>

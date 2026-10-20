@@ -2,12 +2,29 @@
 
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
+use App\Http\Controllers\OrderTrackingController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
 Route::get('/admin', DashboardController::class)->name('admin.dashboard');
+
+Route::get('/tra-cuu-don-hang', [OrderTrackingController::class, 'show'])
+    ->name('orders.track');
+Route::post('/tra-cuu-don-hang', [OrderTrackingController::class, 'lookup'])
+    ->middleware('throttle:10,1')
+    ->name('orders.track.lookup');
+
+Route::get('/admin/orders', [OrderController::class, 'index'])
+    ->name('admin.orders.index');
+Route::get('/admin/orders/{order}', [OrderController::class, 'show'])
+    ->whereNumber('order')
+    ->name('admin.orders.show');
+Route::put('/admin/orders/{order}', [OrderController::class, 'update'])
+    ->whereNumber('order')
+    ->name('admin.orders.update');
 
 Route::resource('/admin/categories', CategoryController::class)
     ->except(['show'])
@@ -80,25 +97,6 @@ Route::get('/admin/{section}', function (string $section) {
                 ['title' => 'Áo thun Basic', 'meta' => 'AT-BASIC-WH-L', 'cells' => ['Trắng / L', '28', '10'], 'status' => ['Ổn định', 'success']],
             ],
         ],
-        'orders' => [
-            'title' => 'Đơn hàng',
-            'subtitle' => 'Theo dõi đơn hàng và trạng thái xử lý gần nhất.',
-            'icon' => 'fas fa-shopping-bag',
-            'action' => 'Xuất danh sách',
-            'recordLabel' => 'Mã đơn',
-            'stats' => [
-                ['Tất cả đơn hàng', '284', 'fas fa-shopping-bag', 'primary'],
-                ['Chờ xử lý', '18', 'fas fa-clock', 'warning'],
-                ['Đang giao', '32', 'fas fa-shipping-fast', 'info'],
-            ],
-            'columns' => ['Khách hàng', 'Ngày đặt', 'Tổng tiền'],
-            'rows' => [
-                ['title' => '#DH-20261016-0284', 'meta' => '3 sản phẩm', 'cells' => ['Nguyễn Minh Anh', '16/10/2026', '₫ 1.248.000'], 'status' => ['Chờ xác nhận', 'warning']],
-                ['title' => '#DH-20261016-0283', 'meta' => '1 sản phẩm', 'cells' => ['Trần Hoàng Nam', '16/10/2026', '₫ 459.000'], 'status' => ['Đang giao', 'info']],
-                ['title' => '#DH-20261015-0282', 'meta' => '2 sản phẩm', 'cells' => ['Lê Thu Hà', '15/10/2026', '₫ 928.000'], 'status' => ['Đã hoàn thành', 'success']],
-                ['title' => '#DH-20261015-0281', 'meta' => '4 sản phẩm', 'cells' => ['Phạm Quốc Bảo', '15/10/2026', '₫ 1.890.000'], 'status' => ['Đã hủy', 'danger']],
-            ],
-        ],
         'users' => [
             'title' => 'Người dùng',
             'subtitle' => 'Danh sách tài khoản quản trị và khách hàng.',
@@ -164,7 +162,6 @@ Route::get('/admin/{section}', function (string $section) {
 })->whereIn('section', [
     'variants',
     'inventory',
-    'orders',
     'users',
     'promotions',
     'reviews',

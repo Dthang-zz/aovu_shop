@@ -17,23 +17,31 @@ class ReturnRequestManagementTest extends TestCase
     {
         parent::setUp();
 
-        Schema::create('don_hangs', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('ma_don_hang')->nullable();
-            $table->string('ten_nguoi_nhan')->nullable();
-            $table->decimal('tong_tien', 12, 0)->nullable();
-        });
-        Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('ten_san_pham')->nullable();
-            $table->decimal('don_gia', 12, 0)->nullable();
-            $table->unsignedInteger('so_luong')->nullable();
-        });
-        Schema::create('tai_khoans', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('ho_ten')->nullable();
-            $table->string('email')->nullable();
-        });
+        if (! Schema::hasTable('don_hangs')) {
+            Schema::create('don_hangs', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('ma_don_hang')->nullable();
+                $table->string('ten_nguoi_nhan')->nullable();
+                $table->decimal('tong_tien', 12, 0)->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('chi_tiet_don_hangs')) {
+            Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('ten_san_pham')->nullable();
+                $table->decimal('don_gia', 12, 0)->nullable();
+                $table->unsignedInteger('so_luong')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('tai_khoans')) {
+            Schema::create('tai_khoans', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('ho_ten')->nullable();
+                $table->string('email')->nullable();
+            });
+        }
     }
 
     public function test_return_request_list_shows_joined_details_and_filters(): void

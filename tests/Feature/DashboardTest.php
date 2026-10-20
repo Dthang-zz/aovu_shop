@@ -16,21 +16,26 @@ class DashboardTest extends TestCase
     {
         parent::setUp();
 
-        Schema::create('don_hangs', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('ma_don_hang');
-            $table->string('ten_nguoi_nhan')->nullable();
-            $table->dateTime('ngay_dat')->nullable();
-            $table->decimal('tong_tien', 12, 0)->nullable();
-            $table->unsignedTinyInteger('trang_thai_thanh_toan')->nullable();
-            $table->unsignedTinyInteger('trang_thai')->nullable();
-        });
-        Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('don_hang_id')->nullable();
-            $table->unsignedInteger('bien_the_id')->nullable();
-            $table->unsignedInteger('so_luong')->nullable();
-        });
+        if (! Schema::hasTable('don_hangs')) {
+            Schema::create('don_hangs', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('ma_don_hang');
+                $table->string('ten_nguoi_nhan')->nullable();
+                $table->dateTime('ngay_dat')->nullable();
+                $table->decimal('tong_tien', 12, 0)->nullable();
+                $table->unsignedTinyInteger('trang_thai_thanh_toan')->nullable();
+                $table->unsignedTinyInteger('trang_thai')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('chi_tiet_don_hangs')) {
+            Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('don_hang_id')->nullable();
+                $table->unsignedInteger('bien_the_id')->nullable();
+                $table->unsignedInteger('so_luong')->nullable();
+            });
+        }
         Schema::create('bien_thes', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('san_pham_id')->nullable();
