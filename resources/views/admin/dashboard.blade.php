@@ -32,7 +32,7 @@ $orderStatuses = [
                 <span class="text-muted small">Đơn được tạo trong ngày</span>
             </div>
             <div class="icon text-info"><i class="fas fa-shopping-bag"></i></div>
-            <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="small-box-footer text-primary">Xem đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('admin.orders.index') }}" class="small-box-footer text-primary">Xem đơn hàng <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
     <div class="col-lg-3 col-6">
@@ -54,7 +54,7 @@ $orderStatuses = [
                 <span class="text-muted small">Từ đầu tháng đến nay</span>
             </div>
             <div class="icon text-success"><i class="fas fa-user-plus"></i></div>
-            <a href="{{ route('admin.resource', ['section' => 'users']) }}" class="small-box-footer text-primary">Xem khách hàng <i class="fas fa-arrow-circle-right"></i></a>
+            <a href="{{ route('admin.users.index') }}" class="small-box-footer text-primary">Xem khách hàng <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
 </div>

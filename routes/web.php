@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VariantController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +45,21 @@ Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])
 Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
 Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');
 
+// Quản lý đơn hàng
+Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orders.index');
+Route::get('/admin/orders/{order}', [OrderController::class, 'show'])
+    ->whereNumber('order')
+    ->name('admin.orders.show');
+Route::put('/admin/orders/{order}', [OrderController::class, 'update'])
+    ->whereNumber('order')
+    ->name('admin.orders.update');
+
+// Quản lý người dùng
+Route::resource('/admin/users', UserController::class)
+    ->names('admin.users');
+Route::patch('/admin/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
+    ->name('admin.users.toggle-status');
+
 // Quản lý đổi trả
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
     ->name('admin.returns.index');
@@ -73,44 +90,6 @@ Route::get('/admin/{section}', function (string $section) {
                 ['title' => 'Đầm Midi hoa nhí', 'meta' => 'DAM-MIDI-BL-S', 'cells' => ['Xanh / S', '05', '10'], 'status' => ['Sắp hết', 'warning']],
                 ['title' => 'Quần ống rộng', 'meta' => 'Q-ONGRONG-BK-M', 'cells' => ['Đen / M', '00', '08'], 'status' => ['Hết hàng', 'danger']],
                 ['title' => 'Áo thun Basic', 'meta' => 'AT-BASIC-WH-L', 'cells' => ['Trắng / L', '28', '10'], 'status' => ['Ổn định', 'success']],
-            ],
-        ],
-        'orders' => [
-            'title' => 'Đơn hàng',
-            'subtitle' => 'Theo dõi đơn hàng và trạng thái xử lý gần nhất.',
-            'icon' => 'fas fa-shopping-bag',
-            'action' => 'Xuất danh sách',
-            'recordLabel' => 'Mã đơn',
-            'stats' => [
-                ['Tất cả đơn hàng', '284', 'fas fa-shopping-bag', 'primary'],
-                ['Chờ xử lý', '18', 'fas fa-clock', 'warning'],
-                ['Đang giao', '32', 'fas fa-shipping-fast', 'info'],
-            ],
-            'columns' => ['Khách hàng', 'Ngày đặt', 'Tổng tiền'],
-            'rows' => [
-                ['title' => '#DH-20261016-0284', 'meta' => '3 sản phẩm', 'cells' => ['Nguyễn Minh Anh', '16/10/2026', '₫ 1.248.000'], 'status' => ['Chờ xác nhận', 'warning']],
-                ['title' => '#DH-20261016-0283', 'meta' => '1 sản phẩm', 'cells' => ['Trần Hoàng Nam', '16/10/2026', '₫ 459.000'], 'status' => ['Đang giao', 'info']],
-                ['title' => '#DH-20261015-0282', 'meta' => '2 sản phẩm', 'cells' => ['Lê Thu Hà', '15/10/2026', '₫ 928.000'], 'status' => ['Đã hoàn thành', 'success']],
-                ['title' => '#DH-20261015-0281', 'meta' => '4 sản phẩm', 'cells' => ['Phạm Quốc Bảo', '15/10/2026', '₫ 1.890.000'], 'status' => ['Đã hủy', 'danger']],
-            ],
-        ],
-        'users' => [
-            'title' => 'Người dùng',
-            'subtitle' => 'Danh sách tài khoản quản trị và khách hàng.',
-            'icon' => 'fas fa-users',
-            'action' => 'Thêm tài khoản',
-            'recordLabel' => 'Tài khoản',
-            'stats' => [
-                ['Tổng tài khoản', '1.248', 'fas fa-users', 'primary'],
-                ['Khách hàng', '1.240', 'fas fa-user', 'info'],
-                ['Quản trị viên', '08', 'fas fa-user-shield', 'warning'],
-            ],
-            'columns' => ['Email', 'Vai trò', 'Ngày tham gia'],
-            'rows' => [
-                ['title' => 'Nguyễn Minh Anh', 'meta' => '0903 123 456', 'cells' => ['minhanh@email.vn', 'Khách hàng', '12/08/2026'], 'status' => ['Hoạt động', 'success']],
-                ['title' => 'Trần Hoàng Nam', 'meta' => '0912 456 789', 'cells' => ['hoangnam@email.vn', 'Khách hàng', '03/07/2026'], 'status' => ['Hoạt động', 'success']],
-                ['title' => 'Lê Thu Hà', 'meta' => '0988 222 010', 'cells' => ['thuha@email.vn', 'Quản trị viên', '15/02/2026'], 'status' => ['Hoạt động', 'success']],
-                ['title' => 'Phạm Quốc Bảo', 'meta' => '0934 555 210', 'cells' => ['quocbao@email.vn', 'Khách hàng', '22/01/2026'], 'status' => ['Đã khóa', 'secondary']],
             ],
         ],
         'promotions' => [
@@ -158,8 +137,6 @@ Route::get('/admin/{section}', function (string $section) {
     return view('admin.resource', ['page' => $pages[$section], 'section' => $section]);
 })->whereIn('section', [
     'inventory',
-    'orders',
-    'users',
     'promotions',
     'reviews',
 ])->name('admin.resource');

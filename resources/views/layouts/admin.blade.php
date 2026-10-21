@@ -265,7 +265,7 @@
                     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <span class="dropdown-header">{{ number_format($notificationCount) }} thông báo cần lưu ý</span>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="dropdown-item"><i
+                        <a href="{{ route('admin.orders.index') }}" class="dropdown-item"><i
                                 class="fas fa-shopping-bag mr-2 text-primary"></i>
                             {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
                         <div class="dropdown-divider"></div>
@@ -343,16 +343,16 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'orders']) }}"
-                                class="nav-link {{ ($section ?? '') === 'orders' ? 'active' : '' }}">
+                            <a href="{{ route('admin.orders.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-shopping-bag"></i>
-                                <p>Đơn hàng</p><span class="right badge badge-danger">18</span>
+                                <p>Đơn hàng</p><span class="right badge badge-danger">{{ number_format($pendingOrderCount) }}</span>
                             </a>
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'users']) }}"
-                                class="nav-link {{ ($section ?? '') === 'users' ? 'active' : '' }}">
+                            <a href="{{ route('admin.users.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>Người dùng</p>
                             </a>
