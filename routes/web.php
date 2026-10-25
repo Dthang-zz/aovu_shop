@@ -14,10 +14,10 @@ Route::get('/admin', DashboardController::class)->name('admin.dashboard');
 
 // Quản lý danh mục
 Route::resource('/admin/categories', CategoryController::class)
-    ->except(['show'])
     ->names([
         'index' => 'admin.categories.index',
         'create' => 'admin.categories.create',
+        'show' => 'admin.categories.show',
         'store' => 'admin.categories.store',
         'edit' => 'admin.categories.edit',
         'update' => 'admin.categories.update',
