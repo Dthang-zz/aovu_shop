@@ -59,6 +59,51 @@
             </div>
         </div>
     </div>
+
+    <section class="card storefront-card mt-4" aria-labelledby="product-reviews-heading">
+        <div class="card-header bg-white">
+            <h2 id="product-reviews-heading" class="h5 mb-0">Đánh giá sản phẩm</h2>
+        </div>
+        <div class="card-body">
+            @if ((int) $reviewSummary->total > 0)
+                <div class="d-flex align-items-center mb-4">
+                    <span class="h3 text-warning mb-0 mr-2"><i class="fas fa-star"></i></span>
+                    <strong class="h3 mb-0">{{ number_format((float) $reviewSummary->average_rating, 1, ',', '.') }}</strong>
+                    <span class="text-muted ml-2">/ 5 · {{ number_format((int) $reviewSummary->total) }} đánh giá</span>
+                </div>
+                <div class="row">
+                    @foreach ($reviews as $review)
+                        <div class="col-12 mb-3">
+                            <article class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                                    <div>
+                                        <strong>{{ $review->customer_name ?: 'Khách hàng' }}</strong>
+                                        <div class="text-warning" aria-label="{{ $review->so_sao }} sao">
+                                            @for ($star = 1; $star <= 5; $star++)
+                                                <i class="{{ $star <= (int) $review->so_sao ? 'fas' : 'far' }} fa-star"></i>
+                                            @endfor
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ $review->ngay_dang ? \Illuminate\Support\Carbon::parse($review->ngay_dang)->format('d/m/Y') : '' }}</small>
+                                </div>
+                                @if ($review->noi_dung)
+                                    <p class="mb-0 mt-2 text-break">{{ $review->noi_dung }}</p>
+                                @endif
+                                @if ($review->phan_hoi)
+                                    <div class="bg-light rounded p-3 mt-3">
+                                        <strong class="small text-primary">Phản hồi từ cửa hàng</strong>
+                                        <p class="mb-0 mt-1">{{ $review->phan_hoi }}</p>
+                                    </div>
+                                @endif
+                            </article>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-muted mb-0">Sản phẩm chưa có đánh giá.</p>
+            @endif
+        </div>
+    </section>
 @endsection
 
 @section('scripts')

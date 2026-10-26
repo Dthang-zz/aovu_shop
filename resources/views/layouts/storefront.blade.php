@@ -23,6 +23,7 @@
             <a href="{{ route('shop.products.index') }}" class="h4 mb-0 font-weight-bold">AOVU Shop</a>
             <nav class="d-flex align-items-center">
                 <a class="mr-3" href="{{ route('shop.products.index') }}">Sản phẩm</a>
+                <a class="mr-3" href="{{ route('news.index') }}">Tin tức</a>
                 <a href="{{ route('shop.cart') }}"><i class="fas fa-shopping-cart mr-1"></i>Giỏ hàng</a>
             </nav>
         </div>
