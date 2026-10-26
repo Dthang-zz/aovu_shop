@@ -26,10 +26,10 @@ Route::resource('/admin/categories', CategoryController::class)
 
 // Quản lý sản phẩm
 Route::resource('/admin/products', ProductController::class)
-    ->except(['show'])
     ->names([
         'index' => 'admin.products.index',
         'create' => 'admin.products.create',
+        'show' => 'admin.products.show',
         'store' => 'admin.products.store',
         'edit' => 'admin.products.edit',
         'update' => 'admin.products.update',
@@ -41,6 +41,7 @@ Route::resource('/admin/products', ProductController::class)
 Route::get('/admin/variants', [VariantController::class, 'index'])->name('admin.variants.index');
 Route::get('/admin/variants/create', [VariantController::class, 'create'])->name('admin.variants.create');
 Route::post('/admin/variants', [VariantController::class, 'store'])->name('admin.variants.store');
+Route::get('/admin/variants/{variant}', [VariantController::class, 'show'])->name('admin.variants.show');
 Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])->name('admin.variants.edit');
 Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
 Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');

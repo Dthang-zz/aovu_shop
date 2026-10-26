@@ -323,8 +323,7 @@
                             <a href="{{ route('admin.products.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tshirt"></i>
-                                <p>Sản phẩm</p><span
-                                    class="right badge badge-primary">{{ number_format($productCount) }}</span>
+                                <p>Sản phẩm</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -339,14 +338,14 @@
                             <a href="{{ route('admin.resource', ['section' => 'inventory']) }}"
                                 class="nav-link {{ ($section ?? '') === 'inventory' ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-warehouse"></i>
-                                <p>Kho hàng</p><span class="right badge badge-warning">8</span>
+                                <p>Kho hàng</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('admin.orders.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-shopping-bag"></i>
-                                <p>Đơn hàng</p><span class="right badge badge-danger">{{ number_format($pendingOrderCount) }}</span>
+                                <p>Đơn hàng</p>
                             </a>
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
@@ -368,15 +367,14 @@
                             <a href="{{ route('admin.resource', ['section' => 'reviews']) }}"
                                 class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>
-                                <p>Đánh giá</p><span class="right badge badge-warning">12</span>
+                                <p>Đánh giá</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('admin.returns.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-exchange-alt"></i>
-                                <p>Đổi / trả hàng</p><span
-                                    class="right badge badge-info">{{ number_format($pendingReturnCount) }}</span>
+                                <p>Đổi / trả hàng</p>
                             </a>
                         </li>
                     </ul>

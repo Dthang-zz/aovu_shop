@@ -23,8 +23,6 @@ class Product extends Model
         'huong_dan_su_dung',
         'noi_bat',
         'ngay_nhap',
-        'khuyen_mai_bat_dau',
-        'khuyen_mai_ket_thuc',
         'danh_muc_id',
         'trang_thai',
     ];
@@ -36,8 +34,6 @@ class Product extends Model
             'gia_khuyen_mai' => 'integer',
             'noi_bat' => 'boolean',
             'ngay_nhap' => 'datetime',
-            'khuyen_mai_bat_dau' => 'datetime',
-            'khuyen_mai_ket_thuc' => 'datetime',
             'danh_muc_id' => 'integer',
             'trang_thai' => 'boolean',
         ];
@@ -52,6 +48,7 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class, 'san_pham_id')->orderBy('thu_tu');
     }
+
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class, 'product_id', 'id');
