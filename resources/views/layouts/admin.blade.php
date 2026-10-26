@@ -360,10 +360,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'reviews']) }}"
-                                class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
+                            <a href="{{ route('admin.reviews.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>
                                 <p>Đánh giá</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.news.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.news.*', 'admin.news-categories.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-newspaper"></i>
+                                <p>Bài viết & tin tức</p>
                             </a>
                         </li>
                     </ul>

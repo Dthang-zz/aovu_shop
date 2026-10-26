@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\NewsArticleController;
+use App\Http\Controllers\Admin\NewsCategoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReturnRequestController;
+use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VariantController;
+use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +22,8 @@ Route::get('/shop', [StorefrontController::class, 'index'])->name('shop.products
 Route::get('/shop/{product}', [StorefrontController::class, 'show'])
     ->whereNumber('product')
     ->name('shop.products.show');
+Route::get('/tin-tuc', [NewsController::class, 'index'])->name('news.index');
+Route::get('/tin-tuc/{slug}', [NewsController::class, 'show'])->name('news.show');
 Route::post('/cart/items', [StorefrontController::class, 'addToCart'])->name('shop.cart.items.store');
 Route::get('/cart', [StorefrontController::class, 'cart'])->name('shop.cart');
 Route::patch('/cart/items/{item}', [StorefrontController::class, 'updateCart'])->name('shop.cart.items.update');
@@ -88,33 +94,22 @@ Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'u
     ->whereNumber('returnRequest')
     ->name('admin.returns.update');
 
-// Các trang quản trị dạng tĩnh khác
-Route::get('/admin/{section}', function (string $section) {
-    $pages = [
-        'reviews' => [
-            'title' => 'Đánh giá sản phẩm',
-            'subtitle' => 'Theo dõi phản hồi và nội dung cần được kiểm duyệt.',
-            'icon' => 'fas fa-star',
-            'action' => 'Xem đánh giá chờ duyệt',
-            'recordLabel' => 'Đánh giá',
-            'stats' => [
-                ['Tổng đánh giá', '386', 'fas fa-star', 'primary'],
-                ['Chờ duyệt', '12', 'fas fa-hourglass-half', 'warning'],
-                ['Điểm trung bình', '4.8 / 5', 'fas fa-star-half-alt', 'success'],
-            ],
-            'columns' => ['Sản phẩm', 'Điểm', 'Ngày gửi'],
-            'rows' => [
-                ['title' => 'Nguyễn Minh Anh', 'meta' => '“Chất vải đẹp, mặc rất thoải mái.”', 'cells' => ['Áo sơ mi Linen', '★★★★★', '16/10/2026'], 'status' => ['Chờ duyệt', 'warning']],
-                ['title' => 'Trần Hoàng Nam', 'meta' => '“Đúng form, giao hàng nhanh.”', 'cells' => ['Áo thun Basic', '★★★★★', '15/10/2026'], 'status' => ['Đã hiển thị', 'success']],
-                ['title' => 'Phạm Quốc Bảo', 'meta' => '“Sản phẩm không giống mô tả.”', 'cells' => ['Quần ống rộng', '★★☆☆☆', '14/10/2026'], 'status' => ['Cần xem xét', 'danger']],
-                ['title' => 'Lê Thu Hà', 'meta' => '“Màu sắc xinh, đóng gói cẩn thận.”', 'cells' => ['Đầm Midi hoa nhí', '★★★★☆', '13/10/2026'], 'status' => ['Đã hiển thị', 'success']],
-            ],
-        ],
-    ];
+Route::get('/admin/reviews', [ReviewController::class, 'index'])->name('admin.reviews.index');
+Route::get('/admin/reviews/{review}', [ReviewController::class, 'show'])
+    ->whereNumber('review')
+    ->name('admin.reviews.show');
+Route::put('/admin/reviews/{review}', [ReviewController::class, 'update'])
+    ->whereNumber('review')
+    ->name('admin.reviews.update');
 
-    abort_unless(array_key_exists($section, $pages), 404);
-
-    return view('admin.resource', ['page' => $pages[$section], 'section' => $section]);
-})->whereIn('section', [
-    'reviews',
-])->name('admin.resource');
+Route::get('/admin/news/{article}/preview', [NewsArticleController::class, 'preview'])
+    ->whereNumber('article')
+    ->name('admin.news.preview');
+Route::resource('/admin/news', NewsArticleController::class)
+    ->parameters(['news' => 'article'])
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+    ->names('admin.news');
+Route::resource('/admin/news-categories', NewsCategoryController::class)
+    ->parameters(['news-categories' => 'newsCategory'])
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
+    ->names('admin.news-categories');

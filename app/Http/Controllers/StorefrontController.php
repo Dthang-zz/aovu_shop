@@ -9,6 +9,8 @@ use App\Services\PromotionPricingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 
 class StorefrontController extends Controller
@@ -44,11 +46,39 @@ class StorefrontController extends Controller
             );
         }
 
+        $reviews = collect();
+        $reviewSummary = (object) ['total' => 0, 'average_rating' => null];
+
+        if (Schema::hasTable('danh_gias')) {
+            $reviewSummary = DB::table('danh_gias')
+                ->where('san_pham_id', $product->id)
+                ->selectRaw('COUNT(*) as total, AVG(so_sao) as average_rating')
+                ->first();
+
+            $reviews = DB::table('danh_gias as reviews')
+                ->leftJoin('tai_khoans as accounts', 'accounts.id', '=', 'reviews.tai_khoan_id')
+                ->where('reviews.san_pham_id', $product->id)
+                ->orderByDesc('reviews.ngay_dang')
+                ->orderByDesc('reviews.id')
+                ->limit(10)
+                ->get([
+                    'reviews.so_sao',
+                    'reviews.noi_dung',
+                    'reviews.ngay_dang',
+                    'accounts.ho_ten as customer_name',
+                    Schema::hasColumn('danh_gias', 'phan_hoi')
+                        ? 'reviews.phan_hoi'
+                        : DB::raw('NULL as phan_hoi'),
+                ]);
+        }
+
         return view('storefront.products.show', [
             'product' => $product,
             'variants' => $variants,
             'quote' => $pricing->price((int) $product->gia_san_pham, $promotion),
             'variantQuotes' => $variantQuotes,
+            'reviews' => $reviews,
+            'reviewSummary' => $reviewSummary,
         ]);
     }
 
