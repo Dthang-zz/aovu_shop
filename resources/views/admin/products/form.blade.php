@@ -8,6 +8,12 @@
 @endsection
 
 @section('content')
+@php
+    $variantRows = old('variants');
+    if (!is_array($variantRows)) {
+        $variantRows = $variants->map(fn ($variant) => $variant->toArray())->all();
+    }
+@endphp
 <form method="POST" enctype="multipart/form-data" action="{{ $product->exists ? route('admin.products.update', $product) : route('admin.products.store') }}">
     @csrf
     @if ($product->exists)
@@ -65,18 +71,6 @@
                             <small class="form-text text-muted">Giá khuyến mãi phải thấp hơn giá bán.</small>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="khuyen_mai_bat_dau">Bắt đầu khuyến mãi</label>
-                            <input id="khuyen_mai_bat_dau" type="datetime-local" name="khuyen_mai_bat_dau" value="{{ old('khuyen_mai_bat_dau', $product->khuyen_mai_bat_dau?->format('Y-m-d\TH:i')) }}" class="form-control @error('khuyen_mai_bat_dau') is-invalid @enderror">
-                            @error('khuyen_mai_bat_dau')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="khuyen_mai_ket_thuc">Kết thúc khuyến mãi</label>
-                            <input id="khuyen_mai_ket_thuc" type="datetime-local" name="khuyen_mai_ket_thuc" value="{{ old('khuyen_mai_ket_thuc', $product->khuyen_mai_ket_thuc?->format('Y-m-d\TH:i')) }}" class="form-control @error('khuyen_mai_ket_thuc') is-invalid @enderror">
-                            @error('khuyen_mai_ket_thuc')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
                     <div class="form-group">
                         <label for="mo_ta">Mô tả sản phẩm</label>
                         <textarea id="mo_ta" name="mo_ta" rows="7" maxlength="20000" class="form-control @error('mo_ta') is-invalid @enderror" placeholder="Nhập mô tả, chất liệu, hướng dẫn sử dụng...">{{ old('mo_ta', $product->mo_ta) }}</textarea>
@@ -91,6 +85,66 @@
                         <label for="huong_dan_su_dung">Hướng dẫn sử dụng</label>
                         <textarea id="huong_dan_su_dung" name="huong_dan_su_dung" rows="4" maxlength="10000" class="form-control @error('huong_dan_su_dung') is-invalid @enderror" placeholder="Ví dụ: Giặt máy ở chế độ nhẹ, không dùng thuốc tẩy, phơi nơi thoáng mát.">{{ old('huong_dan_su_dung', $product->huong_dan_su_dung) }}</textarea>
                         @error('huong_dan_su_dung')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h3 class="card-title"><i class="fas fa-layer-group text-primary mr-2"></i>Biến thể sản phẩm</h3>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-variant">
+                        <i class="fas fa-plus mr-1"></i>Thêm biến thể
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Thiết lập màu sắc, kích thước, SKU, giá riêng, tồn kho và trạng thái. Để trống SKU, hệ thống sẽ tự tạo mã.</p>
+                    <div id="variant-list">
+                        @foreach ($variantRows as $index => $variantRow)
+                            <div class="border rounded p-3 mb-3 variant-row">
+                                @if (!empty($variantRow['id']))
+                                    <input type="hidden" name="variants[{{ $index }}][id]" value="{{ $variantRow['id'] }}">
+                                @endif
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <strong>Biến thể {{ $loop->iteration }}</strong>
+                                    <button type="button" class="btn btn-link text-danger p-0 remove-variant">Xóa dòng</button>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-md-4">
+                                        <label>SKU</label>
+                                        <input type="text" name="variants[{{ $index }}][sku]" value="{{ $variantRow['sku'] ?? '' }}" maxlength="255" class="form-control" placeholder="Tự tạo nếu để trống">
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label>Màu sắc</label>
+                                        <input type="text" name="variants[{{ $index }}][color]" value="{{ $variantRow['color'] ?? '' }}" maxlength="255" class="form-control" placeholder="Ví dụ: Đen">
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label>Kích thước</label>
+                                        <input type="text" name="variants[{{ $index }}][size]" value="{{ $variantRow['size'] ?? '' }}" maxlength="255" class="form-control" placeholder="Ví dụ: M">
+                                    </div>
+                                </div>
+                                <div class="form-row mb-0">
+                                    <div class="form-group col-md-4">
+                                        <label>Giá riêng (₫)</label>
+                                        <input type="number" name="variants[{{ $index }}][price]" value="{{ $variantRow['price'] ?? '' }}" min="0" max="9999999999.99" step="0.01" class="form-control" placeholder="Theo giá sản phẩm">
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label>Tồn kho <span class="text-danger">*</span></label>
+                                        <input type="number" name="variants[{{ $index }}][stock]" value="{{ $variantRow['stock'] ?? 0 }}" min="0" step="1" required class="form-control">
+                                    </div>
+                                    <div class="form-group col-md-4 mb-0">
+                                        <label>Trạng thái <span class="text-danger">*</span></label>
+                                        <select name="variants[{{ $index }}][status]" class="form-control" required>
+                                            @foreach ($variantStatuses as $status => $label)
+                                                <option value="{{ $status }}" @selected(($variantRow['status'] ?? 'active') === $status)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div id="no-variants" class="text-center text-muted py-3 {{ $variantRows === [] ? '' : 'd-none' }}">
+                        Chưa có biến thể. Chọn “Thêm biến thể” để cấu hình.
                     </div>
                 </div>
             </div>
@@ -161,11 +215,74 @@
         <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>{{ $product->exists ? 'Lưu thay đổi' : 'Tạo sản phẩm' }}</button>
     </div>
 </form>
+
+<template id="variant-row-template">
+    <div class="border rounded p-3 mb-3 variant-row">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <strong>Biến thể mới</strong>
+            <button type="button" class="btn btn-link text-danger p-0 remove-variant">Xóa dòng</button>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label>SKU</label>
+                <input type="text" name="variants[__INDEX__][sku]" maxlength="255" class="form-control" placeholder="Tự tạo nếu để trống">
+            </div>
+            <div class="form-group col-md-4">
+                <label>Màu sắc</label>
+                <input type="text" name="variants[__INDEX__][color]" maxlength="255" class="form-control" placeholder="Ví dụ: Đen">
+            </div>
+            <div class="form-group col-md-4">
+                <label>Kích thước</label>
+                <input type="text" name="variants[__INDEX__][size]" maxlength="255" class="form-control" placeholder="Ví dụ: M">
+            </div>
+        </div>
+        <div class="form-row mb-0">
+            <div class="form-group col-md-4">
+                <label>Giá riêng (₫)</label>
+                <input type="number" name="variants[__INDEX__][price]" min="0" max="9999999999.99" step="0.01" class="form-control" placeholder="Theo giá sản phẩm">
+            </div>
+            <div class="form-group col-md-4">
+                <label>Tồn kho <span class="text-danger">*</span></label>
+                <input type="number" name="variants[__INDEX__][stock]" value="0" min="0" step="1" required class="form-control">
+            </div>
+            <div class="form-group col-md-4 mb-0">
+                <label>Trạng thái <span class="text-danger">*</span></label>
+                <select name="variants[__INDEX__][status]" class="form-control" required>
+                    @foreach ($variantStatuses as $status => $label)
+                        <option value="{{ $status }}" @selected($status === 'active')>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+    </div>
+</template>
 @endsection
 
 @section('scripts')
 <script>
     (function () {
+        var variantList = document.getElementById('variant-list');
+        var variantTemplate = document.getElementById('variant-row-template');
+        var emptyVariants = document.getElementById('no-variants');
+        var nextVariantIndex = {{ $variantRows === [] ? 0 : max(array_keys($variantRows)) + 1 }};
+
+        document.getElementById('add-variant').addEventListener('click', function () {
+            var row = variantTemplate.content.cloneNode(true);
+            row.querySelectorAll('[name]').forEach(function (field) {
+                field.name = field.name.replace('__INDEX__', nextVariantIndex);
+            });
+            nextVariantIndex += 1;
+            variantList.appendChild(row);
+            emptyVariants.classList.add('d-none');
+        });
+
+        variantList.addEventListener('click', function (event) {
+            if (!event.target.closest('.remove-variant')) return;
+
+            event.target.closest('.variant-row').remove();
+            emptyVariants.classList.toggle('d-none', variantList.querySelector('.variant-row') !== null);
+        });
+
         var imageInput = document.getElementById('hinh_anh');
         if (!imageInput) return;
 
