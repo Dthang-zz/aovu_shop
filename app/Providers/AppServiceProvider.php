@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Product;
 use App\Models\ReturnRequest;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Paginator::useBootstrapFour();
+
         View::composer('layouts.admin', function ($view): void {
             $pendingOrderCount = Schema::hasTable('don_hangs') && Schema::hasColumn('don_hangs', 'trang_thai')
                 ? DB::table('don_hangs')->where('trang_thai', 0)->count()

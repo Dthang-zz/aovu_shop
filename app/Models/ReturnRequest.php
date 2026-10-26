@@ -76,6 +76,11 @@ class ReturnRequest extends Model
         ];
     }
 
+    public function statusBadge(): string
+    {
+        return self::statusBadges()[$this->trang_thai] ?? 'secondary';
+    }
+
     public function statusLabel(): string
     {
         return self::statuses()[$this->trang_thai] ?? 'Không xác định';

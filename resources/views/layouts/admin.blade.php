@@ -176,6 +176,10 @@
             padding: .2rem .4rem;
         }
 
+        .pagination {
+            margin-bottom: 0;
+        }
+
         .content-footer {
             color: #98a2b3;
             font-size: .78rem;
@@ -325,7 +329,7 @@
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'users']) }}" class="nav-link {{ ($section ?? '') === 'users' ? 'active' : '' }}">
+                            <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>Người dùng</p>
                             </a>

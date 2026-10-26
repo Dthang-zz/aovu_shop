@@ -1,11 +1,11 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\VariantController;
+// use App\Http\Controllers\Admin\VariantController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
@@ -34,14 +34,17 @@ Route::resource('/admin/products', ProductController::class)
     ]);
 
 // Quáº£n lÃ½ thuá»™c tÃ­nh & biáº¿n thá»ƒ
-Route::get('/admin/variants', [VariantController::class, 'index'])->name('admin.variants.index');
-Route::get('/admin/variants/create', [VariantController::class, 'create'])->name('admin.variants.create');
-Route::post('/admin/variants', [VariantController::class, 'store'])->name('admin.variants.store');
-Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])->name('admin.variants.edit');
-Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
-Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');
+// Route::get('/admin/variants', [VariantController::class, 'index'])->name('admin.variants.index');
+// Route::get('/admin/variants/create', [VariantController::class, 'create'])->name('admin.variants.create');
+// Route::post('/admin/variants', [VariantController::class, 'store'])->name('admin.variants.store');
+// Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])->name('admin.variants.edit');
+// Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
+// Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');
 
 // Quáº£n lÃ½ ngÆ°á»i dÃ¹ng
+Route::get('/admin/users/export', [UserController::class, 'export'])->name('admin.users.export');
+Route::post('/admin/users/bulk-action', [UserController::class, 'bulkAction'])->name('admin.users.bulk-action');
+
 Route::resource('/admin/users', UserController::class)
     ->except(['show'])
     ->names([
@@ -54,6 +57,11 @@ Route::resource('/admin/users', UserController::class)
     ]);
 Route::get('/admin/users/{user}', [UserController::class, 'show'])->name('admin.users.show');
 Route::patch('/admin/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('admin.users.toggle-status');
+Route::post('/admin/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset-password');
+Route::post('/admin/users/{user}/admin-note', [UserController::class, 'updateAdminNote'])->name('admin.users.admin-note');
+Route::post('/admin/users/{user}/addresses', [UserController::class, 'storeAddress'])->name('admin.users.addresses.store');
+Route::delete('/admin/users/{user}/addresses/{address}', [UserController::class, 'destroyAddress'])->name('admin.users.addresses.destroy');
+Route::patch('/admin/users/{user}/addresses/{address}/default', [UserController::class, 'setDefaultAddress'])->name('admin.users.addresses.default');
 
 // Quáº£n lÃ½ Ä‘á»•i tráº£
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
