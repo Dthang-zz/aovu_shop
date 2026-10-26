@@ -358,6 +358,58 @@ class ProductManagementTest extends TestCase
             ->assertDontSee('ORD-PENDING');
     }
 
+    public function test_active_campaign_price_is_shown_in_product_list_and_detail(): void
+    {
+        Schema::create('bien_thes', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('san_pham_id')->nullable();
+        });
+        Schema::create('don_hangs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('ma_don_hang');
+            $table->dateTime('ngay_dat')->nullable();
+            $table->unsignedTinyInteger('trang_thai')->nullable();
+        });
+        Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('don_hang_id')->nullable();
+            $table->unsignedInteger('bien_the_id')->nullable();
+            $table->decimal('don_gia', 12, 0)->nullable();
+            $table->unsignedInteger('so_luong')->nullable();
+            $table->decimal('thanh_tien', 12, 0)->nullable();
+        });
+
+        $product = Product::create([
+            'ma_san_pham' => 'PROMOTION-PRICE-001',
+            'ten_san_pham' => 'Sản phẩm khuyến mãi',
+            'gia_san_pham' => 500000,
+            'trang_thai' => true,
+        ]);
+        $promotionId = DB::table('promotions')->insertGetId([
+            'ten_chuong_trinh' => 'Summer Sale',
+            'phan_tram_giam' => 20,
+            'ngay_bat_dau' => now()->subHour(),
+            'ngay_ket_thuc' => now()->addHour(),
+            'trang_thai' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('promotion_products')->insert([
+            'promotion_id' => $promotionId,
+            'product_id' => $product->id,
+        ]);
+
+        $this->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('400.000 ₫')
+            ->assertSee('Summer Sale');
+
+        $this->get(route('admin.products.show', $product))
+            ->assertOk()
+            ->assertSee('400.000 ₫')
+            ->assertSee('Summer Sale');
+    }
+
     public function test_product_form_rejects_variant_sku_already_used_by_another_product(): void
     {
         $existingProduct = Product::create([

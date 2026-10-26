@@ -127,7 +127,14 @@
                         </td>
                         <td>{{ $product->category?->ten_danh_muc ?? 'Chưa phân loại' }}</td>
                         <td>{{ number_format($product->gia_san_pham, 0, ',', '.') }} ₫</td>
-                        <td>{{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : '—' }}</td>
+                        <td>
+                            @if ($promotionQuotes[$product->id]['promotion'])
+                                <span class="font-weight-bold text-danger">{{ number_format($promotionQuotes[$product->id]['sale_price'], 0, ',', '.') }} ₫</span>
+                                <small class="d-block text-muted">{{ $promotionQuotes[$product->id]['promotion']->ten_chuong_trinh }}</small>
+                            @else
+                                {{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : '—' }}
+                            @endif
+                        </td>
                         <td>
                             @if ($product->trang_thai)
                             <span class="badge badge-success px-2 py-1">Đang kinh doanh</span>

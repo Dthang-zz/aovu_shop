@@ -39,7 +39,22 @@
                         <thead><tr><th>Sản phẩm</th><th class="text-right">Đơn giá</th><th class="text-center">Số lượng</th><th class="text-right">Thành tiền</th></tr></thead>
                         <tbody>
                             @forelse ($items as $item)
-                                <tr><td>{{ $item->ten_san_pham ?: 'Sản phẩm' }}</td><td class="text-right">{{ number_format((float) $item->don_gia, 0, ',', '.') }} ₫</td><td class="text-center">{{ $item->so_luong ?? 0 }}</td><td class="text-right">{{ number_format((float) ($item->thanh_tien ?? ((float) $item->don_gia * (int) $item->so_luong)), 0, ',', '.') }} ₫</td></tr>
+                                <tr>
+                                    <td>
+                                        {{ $item->ten_san_pham ?: 'Sản phẩm' }}
+                                        @if ($item->ten_khuyen_mai)
+                                            <div class="small text-danger">{{ $item->ten_khuyen_mai }} ({{ number_format((float) $item->phan_tram_giam, 2) }}%)</div>
+                                        @endif
+                                    </td>
+                                    <td class="text-right">
+                                        @if (isset($item->gia_goc) && $item->gia_goc > $item->don_gia)
+                                            <div class="text-muted small"><s>{{ number_format((float) $item->gia_goc, 0, ',', '.') }} ₫</s></div>
+                                        @endif
+                                        {{ number_format((float) $item->don_gia, 0, ',', '.') }} ₫
+                                    </td>
+                                    <td class="text-center">{{ $item->so_luong ?? 0 }}</td>
+                                    <td class="text-right">{{ number_format((float) ($item->thanh_tien ?? ((float) $item->don_gia * (int) $item->so_luong)), 0, ',', '.') }} ₫</td>
+                                </tr>
                             @empty
                                 <tr><td colspan="4" class="text-center text-muted">Đơn hàng chưa có thông tin sản phẩm.</td></tr>
                             @endforelse
@@ -50,7 +65,12 @@
                     <div class="col-md-5">
                         <div class="d-flex justify-content-between py-1"><span class="text-muted">Tiền hàng</span><span>{{ number_format((float) $order->tien_hang, 0, ',', '.') }} ₫</span></div>
                         <div class="d-flex justify-content-between py-1"><span class="text-muted">Phí vận chuyển</span><span>{{ number_format((float) $order->phi_van_chuyen, 0, ',', '.') }} ₫</span></div>
-                        <div class="d-flex justify-content-between py-1"><span class="text-muted">Giảm giá</span><span>-{{ number_format((float) $order->tien_giam, 0, ',', '.') }} ₫</span></div>
+                        @if ($promotionDiscountsAvailable)
+                            <div class="d-flex justify-content-between py-1"><span class="text-muted">Giảm từ chương trình</span><span>-{{ number_format((float) $order->tien_giam_khuyen_mai, 0, ',', '.') }} ₫</span></div>
+                            <div class="d-flex justify-content-between py-1"><span class="text-muted">Giảm từ voucher</span><span>-{{ number_format((float) $order->tien_giam_voucher, 0, ',', '.') }} ₫</span></div>
+                        @else
+                            <div class="d-flex justify-content-between py-1"><span class="text-muted">Giảm giá</span><span>-{{ number_format((float) $order->tien_giam, 0, ',', '.') }} ₫</span></div>
+                        @endif
                         <div class="d-flex justify-content-between border-top pt-2 mt-1 font-weight-bold"><span>Tổng thanh toán</span><span class="text-primary">{{ number_format((float) $order->tong_tien, 0, ',', '.') }} ₫</span></div>
                     </div>
                 </div>

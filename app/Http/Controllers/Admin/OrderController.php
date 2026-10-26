@@ -86,6 +86,8 @@ class OrderController extends Controller
             'statuses' => Order::statuses(),
             'statusBadges' => Order::statusBadges(),
             'allowedStatuses' => Order::allowedNextStatuses((int) $order->trang_thai),
+            'promotionDiscountsAvailable' => Schema::hasColumn('don_hangs', 'tien_giam_khuyen_mai')
+                && Schema::hasColumn('don_hangs', 'tien_giam_voucher'),
         ]);
     }
 
