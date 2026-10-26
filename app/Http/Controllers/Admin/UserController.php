@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChucVu;
+use App\Models\Order;
+use App\Models\ReturnRequest;
 use App\Models\TaiKhoan;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -76,18 +78,48 @@ class UserController extends Controller
     {
         $user->load('chucVu');
 
-        // Thống kê đơn hàng
-        $orderStats = [];
+        $orders = collect();
+        $orderStats = (object) ['tong_don' => 0, 'tong_chi_tieu' => 0];
         if (Schema::hasTable('don_hangs')) {
             $orderStats = DB::table('don_hangs')
                 ->where('tai_khoan_id', $user->getKey())
                 ->selectRaw('COUNT(*) as tong_don, SUM(tong_tien) as tong_chi_tieu')
                 ->first();
+
+            $orders = DB::table('don_hangs')
+                ->where('tai_khoan_id', $user->getKey())
+                ->orderByDesc('ngay_dat')
+                ->orderByDesc('id')
+                ->get(['id', 'ma_don_hang', 'ngay_dat', 'tong_tien', 'trang_thai'])
+                ->map(function (object $order): object {
+                    $status = (int) $order->trang_thai;
+                    $order->status_label = Order::statuses()[$status] ?? 'Không xác định';
+                    $order->status_badge = Order::statusBadges()[$status] ?? 'secondary';
+
+                    return $order;
+                });
         }
+
+        $reviews = Schema::hasTable('danh_gias')
+            ? DB::table('danh_gias as reviews')
+                ->leftJoin('san_phams as products', 'products.id', '=', 'reviews.san_pham_id')
+                ->where('reviews.tai_khoan_id', $user->getKey())
+                ->orderByDesc('reviews.ngay_dang')
+                ->orderByDesc('reviews.id')
+                ->get([
+                    'reviews.so_sao',
+                    'reviews.noi_dung',
+                    'reviews.ngay_dang',
+                    'reviews.trang_thai',
+                    'products.ten_san_pham',
+                ])
+            : collect();
 
         return view('admin.users.show', [
             'user' => $user,
             'orderStats' => $orderStats,
+            'orders' => $orders,
+            'reviews' => $reviews,
         ]);
     }
 
@@ -96,7 +128,7 @@ class UserController extends Controller
         return view('admin.users.form', [
             'user' => new TaiKhoan(['trang_thai' => true, 'ngay_tao' => now()]),
             'chucVus' => ChucVu::orderBy('ten_chuc_vu')->get(),
-            'formTitle' => 'Thêm người dùng',
+            'formTitle' => 'Thêm khách hàng',
         ]);
     }
 
@@ -128,7 +160,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Đã thêm người dùng mới.');
+            ->with('success', 'Đã thêm khách hàng mới.');
     }
 
     public function edit(TaiKhoan $user): View
@@ -136,7 +168,7 @@ class UserController extends Controller
         return view('admin.users.form', [
             'user' => $user,
             'chucVus' => ChucVu::orderBy('ten_chuc_vu')->get(),
-            'formTitle' => 'Chỉnh sửa người dùng',
+            'formTitle' => 'Chỉnh sửa khách hàng',
         ]);
     }
 
@@ -173,36 +205,74 @@ class UserController extends Controller
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Đã cập nhật thông tin người dùng.');
+            ->with('success', 'Đã cập nhật thông tin khách hàng.');
     }
 
     public function destroy(TaiKhoan $user): RedirectResponse
     {
-        $references = [
-            'danh_gias' => 'tai_khoan_id',
-            'dia_chis' => 'tai_khoan_id',
-            'don_hangs' => 'tai_khoan_id',
-            'gio_hangs' => 'tai_khoan_id',
-            'lich_su_trang_thai_don_hangs' => 'nguoi_cap_nhat_id',
-            'yeu_cau_doi_tras' => 'tai_khoan_id',
-            'yeu_thichs' => 'tai_khoan_id',
-        ];
+        $blockMessage = DB::transaction(function () use ($user): ?string {
+            $lockedUser = DB::table('tai_khoans')
+                ->where('id', $user->getKey())
+                ->lockForUpdate()
+                ->first();
 
-        foreach ($references as $table => $column) {
-            if (Schema::hasTable($table)
-                && Schema::hasColumn($table, $column)
-                && DB::table($table)->where($column, $user->getKey())->exists()) {
-                return redirect()
-                    ->route('admin.users.index')
-                    ->with('error', 'Không thể xóa người dùng đang được dữ liệu khác sử dụng. Hãy khóa tài khoản thay thế.');
+            if ($lockedUser === null) {
+                return 'Khách hàng không còn tồn tại.';
             }
-        }
 
-        $user->delete();
+            if (Schema::hasTable('don_hangs')
+                && DB::table('don_hangs')->where('tai_khoan_id', $user->getKey())->exists()) {
+                return 'Khách hàng đã có đơn hàng nên không thể xóa trực tiếp. Hãy khóa tài khoản để giữ lịch sử giao dịch.';
+            }
+
+            if (Schema::hasTable('yeu_cau_doi_tras')
+                && Schema::hasColumn('yeu_cau_doi_tras', 'tai_khoan_id')
+                && Schema::hasColumn('yeu_cau_doi_tras', 'trang_thai')
+                && DB::table('yeu_cau_doi_tras')
+                    ->where('tai_khoan_id', $user->getKey())
+                    ->whereIn('trang_thai', [
+                        ReturnRequest::STATUS_PENDING,
+                        ReturnRequest::STATUS_PROCESSING,
+                        ReturnRequest::STATUS_APPROVED,
+                    ])
+                    ->exists()) {
+                return 'Khách hàng có yêu cầu đổi/trả đang xử lý nên không thể xóa. Hãy xử lý yêu cầu hoặc khóa tài khoản.';
+            }
+
+            foreach (['danh_gias', 'dia_chis', 'gio_hangs', 'yeu_thichs'] as $table) {
+                if (Schema::hasTable($table) && Schema::hasColumn($table, 'tai_khoan_id')) {
+                    DB::table($table)->where('tai_khoan_id', $user->getKey())->delete();
+                }
+            }
+
+            if (Schema::hasTable('yeu_cau_doi_tras')
+                && Schema::hasColumn('yeu_cau_doi_tras', 'tai_khoan_id')) {
+                DB::table('yeu_cau_doi_tras')
+                    ->where('tai_khoan_id', $user->getKey())
+                    ->update(['tai_khoan_id' => null]);
+            }
+
+            if (Schema::hasTable('lich_su_trang_thai_don_hangs')
+                && Schema::hasColumn('lich_su_trang_thai_don_hangs', 'nguoi_cap_nhat_id')) {
+                DB::table('lich_su_trang_thai_don_hangs')
+                    ->where('nguoi_cap_nhat_id', $user->getKey())
+                    ->update(['nguoi_cap_nhat_id' => null]);
+            }
+
+            $user->delete();
+
+            return null;
+        });
+
+        if ($blockMessage !== null) {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', $blockMessage);
+        }
 
         return redirect()
             ->route('admin.users.index')
-            ->with('success', 'Đã xóa người dùng.');
+            ->with('success', 'Đã xóa khách hàng.');
     }
 
     public function toggleStatus(TaiKhoan $user): RedirectResponse

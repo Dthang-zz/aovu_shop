@@ -42,10 +42,22 @@ class UserManagementTest extends TestCase
         });
         Schema::create('don_hangs', function (Blueprint $table) {
             $table->increments('id');
+            $table->string('ma_don_hang')->nullable();
             $table->unsignedInteger('tai_khoan_id')->nullable();
+            $table->dateTime('ngay_dat')->nullable();
             $table->decimal('tong_tien', 12, 0)->nullable();
+            $table->unsignedTinyInteger('trang_thai')->nullable();
         });
-        foreach (['danh_gias', 'dia_chis', 'gio_hangs', 'yeu_thichs'] as $tableName) {
+        Schema::create('danh_gias', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('san_pham_id')->nullable();
+            $table->unsignedInteger('tai_khoan_id')->nullable();
+            $table->unsignedTinyInteger('so_sao')->nullable();
+            $table->text('noi_dung')->nullable();
+            $table->dateTime('ngay_dang')->nullable();
+            $table->unsignedTinyInteger('trang_thai')->nullable();
+        });
+        foreach (['dia_chis', 'gio_hangs', 'yeu_thichs'] as $tableName) {
             Schema::create($tableName, function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('tai_khoan_id')->nullable();
@@ -213,13 +225,35 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors('gioi_tinh');
     }
 
-    public function test_user_detail_shows_role_and_order_statistics(): void
+    public function test_customer_detail_shows_all_orders_comments_and_order_statistics(): void
     {
         $role = ChucVu::create(['ten_chuc_vu' => 'Quản trị viên']);
         $user = $this->createUser(['chuc_vu_id' => $role->id]);
+        $productId = DB::table('san_phams')->insertGetId([
+            'ma_san_pham' => 'CUSTOMER-REVIEW-01',
+            'ten_san_pham' => 'Áo Linen',
+        ]);
         DB::table('don_hangs')->insert([
-            ['tai_khoan_id' => $user->id, 'tong_tien' => 200000],
-            ['tai_khoan_id' => $user->id, 'tong_tien' => 300000],
+            ['ma_don_hang' => 'ORD-CUSTOMER-01', 'tai_khoan_id' => $user->id, 'tong_tien' => 200000, 'trang_thai' => 0],
+            ['ma_don_hang' => 'ORD-CUSTOMER-02', 'tai_khoan_id' => $user->id, 'tong_tien' => 300000, 'trang_thai' => 3],
+        ]);
+        DB::table('danh_gias')->insert([
+            [
+                'san_pham_id' => $productId,
+                'tai_khoan_id' => $user->id,
+                'so_sao' => 5,
+                'noi_dung' => 'Chất vải rất đẹp',
+                'ngay_dang' => '2026-10-01 12:00:00',
+                'trang_thai' => 1,
+            ],
+            [
+                'san_pham_id' => $productId,
+                'tai_khoan_id' => $user->id,
+                'so_sao' => 4,
+                'noi_dung' => 'Giao hàng nhanh',
+                'ngay_dang' => '2026-10-02 12:00:00',
+                'trang_thai' => 0,
+            ],
         ]);
 
         $this->get(route('admin.users.show', $user))
@@ -227,7 +261,14 @@ class UserManagementTest extends TestCase
             ->assertSee('Quản trị viên')
             ->assertSee('Tổng đơn hàng')
             ->assertSee('2')
-            ->assertSee('500.000');
+            ->assertSee('500.000')
+            ->assertSee('ORD-CUSTOMER-01')
+            ->assertSee('ORD-CUSTOMER-02')
+            ->assertSee('Chờ xác nhận')
+            ->assertSee('Hoàn thành')
+            ->assertSee('Chất vải rất đẹp')
+            ->assertSee('Giao hàng nhanh')
+            ->assertSee('Áo Linen');
     }
 
     public function test_user_status_can_be_locked_and_reactivated(): void
@@ -245,27 +286,78 @@ class UserManagementTest extends TestCase
         $this->assertDatabaseHas('tai_khoans', ['id' => $user->id, 'trang_thai' => 1]);
     }
 
-    public function test_user_with_related_records_cannot_be_deleted(): void
+    public function test_customer_with_an_order_in_any_status_cannot_be_deleted(): void
+    {
+        foreach ([0, 1, 2, 3, 4] as $status) {
+            $user = $this->createUser();
+            DB::table('don_hangs')->insert([
+                'tai_khoan_id' => $user->id,
+                'trang_thai' => $status,
+            ]);
+
+            $this->delete(route('admin.users.destroy', $user))
+                ->assertRedirect(route('admin.users.index'))
+                ->assertSessionHas('error', 'Khách hàng đã có đơn hàng nên không thể xóa trực tiếp. Hãy khóa tài khoản để giữ lịch sử giao dịch.');
+
+            $this->assertModelExists($user);
+        }
+    }
+
+    public function test_customer_with_an_open_return_request_cannot_be_deleted(): void
+    {
+        foreach ([0, 1, 2] as $status) {
+            $user = $this->createUser();
+            DB::table('yeu_cau_doi_tras')->insert([
+                'tai_khoan_id' => $user->id,
+                'trang_thai' => $status,
+            ]);
+
+            $this->delete(route('admin.users.destroy', $user))
+                ->assertRedirect(route('admin.users.index'))
+                ->assertSessionHas('error', 'Khách hàng có yêu cầu đổi/trả đang xử lý nên không thể xóa. Hãy xử lý yêu cầu hoặc khóa tài khoản.');
+
+            $this->assertModelExists($user);
+        }
+    }
+
+    public function test_customer_without_orders_can_be_deleted_and_personal_records_are_removed(): void
     {
         $user = $this->createUser();
         DB::table('yeu_thichs')->insert(['tai_khoan_id' => $user->id]);
+        DB::table('dia_chis')->insert(['tai_khoan_id' => $user->id]);
+        DB::table('danh_gias')->insert([
+            'tai_khoan_id' => $user->id,
+            'noi_dung' => 'Đánh giá của khách hàng',
+        ]);
+        DB::table('yeu_cau_doi_tras')->insert([
+            'tai_khoan_id' => $user->id,
+            'trang_thai' => 3,
+        ]);
 
         $this->delete(route('admin.users.destroy', $user))
             ->assertRedirect(route('admin.users.index'))
-            ->assertSessionHas('error');
-
-        $this->assertModelExists($user);
-    }
-
-    public function test_user_without_related_records_can_be_deleted(): void
-    {
-        $user = $this->createUser();
-
-        $this->delete(route('admin.users.destroy', $user))
-            ->assertRedirect(route('admin.users.index'))
-            ->assertSessionHas('success', 'Đã xóa người dùng.');
+            ->assertSessionHas('success', 'Đã xóa khách hàng.');
 
         $this->assertModelMissing($user);
+        $this->assertDatabaseMissing('yeu_thichs', ['tai_khoan_id' => $user->id]);
+        $this->assertDatabaseMissing('dia_chis', ['tai_khoan_id' => $user->id]);
+        $this->assertDatabaseMissing('danh_gias', ['tai_khoan_id' => $user->id]);
+        $this->assertDatabaseHas('yeu_cau_doi_tras', [
+            'tai_khoan_id' => null,
+            'trang_thai' => 3,
+        ]);
+    }
+
+    public function test_customer_index_explains_account_deletion_rules(): void
+    {
+        $this->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertSee('Khách hàng')
+            ->assertSee('Quy tắc xóa tài khoản')
+            ->assertSee('fas fa-book-open')
+            ->assertSee('Chưa có đơn hàng')
+            ->assertSee('Có đơn đã hủy')
+            ->assertSee('Có yêu cầu đổi/trả đang xử lý');
     }
 
     private function createUser(array $attributes = []): TaiKhoan

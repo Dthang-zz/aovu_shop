@@ -74,25 +74,6 @@ Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'u
 // Các trang quản trị dạng tĩnh khác
 Route::get('/admin/{section}', function (string $section) {
     $pages = [
-        'inventory' => [
-            'title' => 'Kho hàng',
-            'subtitle' => 'Theo dõi tồn kho và các cảnh báo cần được lưu ý.',
-            'icon' => 'fas fa-warehouse',
-            'action' => 'Phiếu nhập / xuất',
-            'recordLabel' => 'Sản phẩm / SKU',
-            'stats' => [
-                ['Tổng tồn kho', '1.284', 'fas fa-boxes', 'primary'],
-                ['Sắp hết hàng', '08', 'fas fa-exclamation-triangle', 'warning'],
-                ['Hết hàng', '03', 'fas fa-times-circle', 'danger'],
-            ],
-            'columns' => ['Phân loại', 'Tồn kho', 'Ngưỡng cảnh báo'],
-            'rows' => [
-                ['title' => 'Áo sơ mi Linen', 'meta' => 'AO-LINEN-WH-M', 'cells' => ['Trắng / M', '42', '10'], 'status' => ['Ổn định', 'success']],
-                ['title' => 'Đầm Midi hoa nhí', 'meta' => 'DAM-MIDI-BL-S', 'cells' => ['Xanh / S', '05', '10'], 'status' => ['Sắp hết', 'warning']],
-                ['title' => 'Quần ống rộng', 'meta' => 'Q-ONGRONG-BK-M', 'cells' => ['Đen / M', '00', '08'], 'status' => ['Hết hàng', 'danger']],
-                ['title' => 'Áo thun Basic', 'meta' => 'AT-BASIC-WH-L', 'cells' => ['Trắng / L', '28', '10'], 'status' => ['Ổn định', 'success']],
-            ],
-        ],
         'promotions' => [
             'title' => 'Khuyến mãi',
             'subtitle' => 'Quản lý mã giảm giá và chương trình ưu đãi.',
@@ -137,7 +118,6 @@ Route::get('/admin/{section}', function (string $section) {
 
     return view('admin.resource', ['page' => $pages[$section], 'section' => $section]);
 })->whereIn('section', [
-    'inventory',
     'promotions',
     'reviews',
 ])->name('admin.resource');

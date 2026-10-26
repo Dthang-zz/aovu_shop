@@ -2,9 +2,9 @@
 
 @section('title', $formTitle)
 @section('page-heading', $formTitle)
-@section('page-subheading', 'Nhập thông tin tài khoản người dùng.')
+@section('page-subheading', 'Nhập thông tin tài khoản khách hàng.')
 @section('breadcrumb')
-    <a href="{{ route('admin.users.index') }}">Người dùng</a>
+    <a href="{{ route('admin.users.index') }}">Khách hàng</a>
 @endsection
 
 @section('content')
@@ -173,7 +173,7 @@
                 </div>
                 <div class="card-footer bg-white d-flex justify-content-between">
                     <a href="{{ route('admin.users.index') }}" class="btn btn-default"><i class="fas fa-arrow-left mr-1"></i>Quay lại</a>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>{{ $user->exists ? 'Lưu thay đổi' : 'Tạo người dùng' }}</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>{{ $user->exists ? 'Lưu thay đổi' : 'Tạo khách hàng' }}</button>
                 </div>
             </div>
         </form>

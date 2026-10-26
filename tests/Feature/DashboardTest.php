@@ -111,7 +111,20 @@ class DashboardTest extends TestCase
             ->assertSee('5 đã bán')
             ->assertDontSee('Cảnh báo tồn kho')
             ->assertDontSee('DASH-001-WH-M')
+            ->assertDontSee('Kho hàng')
+            ->assertDontSee('biến thể sắp hết hàng')
+            ->assertSeeInOrder([
+                'VẬN HÀNH',
+                'Đơn hàng',
+                'Đổi / trả hàng',
+                'KHÁCH HÀNG & TIỆN ÍCH',
+            ])
             ->assertSee('Còn 4');
+    }
+
+    public function test_inventory_page_is_no_longer_available(): void
+    {
+        $this->get('/admin/inventory')->assertNotFound();
     }
 
     public function test_dashboard_shows_period_sales_repeat_buyers_category_and_growth_metrics(): void

@@ -1,16 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản lý người dùng')
-@section('page-heading', 'Quản lý người dùng')
+@section('title', 'Quản lý khách hàng')
+@section('page-heading', 'Quản lý khách hàng')
 @section('page-subheading', 'Danh sách tài khoản khách hàng và quản trị viên.')
-@section('breadcrumb', 'Người dùng')
+@section('breadcrumb', 'Khách hàng')
 
 @section('content')
 <div class="row">
     <div class="col-lg-4 col-sm-6">
         <div class="small-box bg-white">
             <div class="inner">
-                <p class="text-muted mb-1">Tổng tài khoản</p>
+                <p class="text-muted mb-1">Tổng khách hàng</p>
                 <h3>{{ number_format($totalCount) }}</h3>
             </div>
             <div class="icon text-primary"><i class="fas fa-users"></i></div>
@@ -53,12 +53,13 @@
     <div class="card-header py-3">
         <div class="row align-items-center">
             <div class="col-md-4">
-                <h3 class="card-title"><i class="fas fa-users text-primary mr-2"></i>Danh sách người dùng</h3>
+                <h3 class="card-title"><i class="fas fa-users text-primary mr-2"></i>Danh sách khách hàng</h3>
+                @include('admin.users._deletion-rules')
             </div>
             <div class="col-md-8 mt-3 mt-md-0">
                 <form method="GET" action="{{ route('admin.users.index') }}" class="d-flex flex-wrap justify-content-md-end" style="gap: 6px">
                     <div class="input-group input-group-sm" style="max-width: 210px">
-                        <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Tìm tên, email, SĐT..." aria-label="Tìm người dùng">
+                        <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Tìm tên, email, SĐT..." aria-label="Tìm khách hàng">
                         <div class="input-group-append"><button class="btn btn-default" type="submit" aria-label="Tìm"><i class="fas fa-search"></i></button></div>
                     </div>
                     <select name="chuc_vu_id" class="form-control form-control-sm" style="max-width: 145px" aria-label="Lọc chức vụ" onchange="this.form.requestSubmit()">
@@ -79,7 +80,7 @@
                         <option value="2" @selected(request('gioi_tinh') === '2')>Khác</option>
                     </select>
                     <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm text-nowrap">
-                        <i class="fas fa-plus mr-1"></i>Thêm người dùng
+                        <i class="fas fa-plus mr-1"></i>Thêm khách hàng
                     </a>
                 </form>
             </div>
@@ -90,7 +91,7 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th class="pl-3">Người dùng</th>
+                        <th class="pl-3">Khách hàng</th>
                         <th>Email</th>
                         <th>Số điện thoại</th>
                         <th>Chức vụ</th>
@@ -161,7 +162,7 @@
                                     <button type="submit" class="btn btn-default btn-sm text-success" title="Mở khóa tài khoản" aria-label="Mở khóa {{ $user->ho_ten }}"><i class="fas fa-lock-open"></i></button>
                                 @endif
                             </form>
-                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa người dùng này? Thao tác không thể hoàn tác.')">
+                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa khách hàng này? Thao tác không thể hoàn tác.')">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-default btn-sm text-danger" aria-label="Xóa {{ $user->ho_ten }}"><i class="far fa-trash-alt"></i></button>
@@ -172,8 +173,8 @@
                     <tr>
                         <td colspan="7" class="text-center py-5">
                             <i class="fas fa-users text-muted mb-2" style="font-size: 2rem"></i>
-                            <div class="font-weight-bold">Chưa có người dùng phù hợp</div>
-                            <div class="text-muted small">Thêm người dùng mới hoặc điều chỉnh bộ lọc tìm kiếm.</div>
+                            <div class="font-weight-bold">Chưa có khách hàng phù hợp</div>
+                            <div class="text-muted small">Thêm khách hàng mới hoặc điều chỉnh bộ lọc tìm kiếm.</div>
                         </td>
                     </tr>
                     @endforelse
@@ -183,7 +184,7 @@
     </div>
     @if ($users->hasPages())
     <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-        <span class="text-muted small">Hiển thị {{ $users->firstItem() }}–{{ $users->lastItem() }} trên {{ $users->total() }} người dùng</span>
+        <span class="text-muted small">Hiển thị {{ $users->firstItem() }}–{{ $users->lastItem() }} trên {{ $users->total() }} khách hàng</span>
         {{ $users->links() }}
     </div>
     @endif

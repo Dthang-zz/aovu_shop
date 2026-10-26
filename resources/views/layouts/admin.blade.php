@@ -269,10 +269,6 @@
                                 class="fas fa-shopping-bag mr-2 text-primary"></i>
                             {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'inventory']) }}" class="dropdown-item"><i
-                                class="fas fa-exclamation-triangle mr-2 text-warning"></i>
-                            {{ number_format($lowStockVariantCount) }} biến thể sắp hết hàng</a>
-                        <div class="dropdown-divider"></div>
                         <a href="{{ route('admin.returns.index') }}" class="dropdown-item"><i
                                 class="fas fa-exchange-alt mr-2 text-warning"></i>
                             {{ number_format($pendingReturnCount) }} yêu cầu đổi/trả chờ xử lý</a>
@@ -335,17 +331,17 @@
                         </li>
                         <li class="nav-header">VẬN HÀNH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'inventory']) }}"
-                                class="nav-link {{ ($section ?? '') === 'inventory' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-warehouse"></i>
-                                <p>Kho hàng</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a href="{{ route('admin.orders.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-shopping-bag"></i>
                                 <p>Đơn hàng</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.returns.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-exchange-alt"></i>
+                                <p>Đổi / trả hàng</p>
                             </a>
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
@@ -353,7 +349,7 @@
                             <a href="{{ route('admin.users.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
-                                <p>Người dùng</p>
+                                <p>Khách hàng</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -368,13 +364,6 @@
                                 class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>
                                 <p>Đánh giá</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.returns.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-exchange-alt"></i>
-                                <p>Đổi / trả hàng</p>
                             </a>
                         </li>
                     </ul>

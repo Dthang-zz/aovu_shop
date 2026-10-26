@@ -1,10 +1,10 @@
 @extends('layouts.admin')
 
-@section('title', 'Chi tiết người dùng — ' . $user->ho_ten)
+@section('title', 'Chi tiết khách hàng — ' . $user->ho_ten)
 @section('page-heading', $user->ho_ten)
-@section('page-subheading', 'Thông tin chi tiết tài khoản người dùng.')
+@section('page-subheading', 'Thông tin chi tiết tài khoản khách hàng.')
 @section('breadcrumb')
-    <a href="{{ route('admin.users.index') }}">Người dùng</a>
+    <a href="{{ route('admin.users.index') }}">Khách hàng</a>
 @endsection
 
 @section('content')
@@ -51,8 +51,6 @@
             </div>
         </div>
 
-        {{-- Thống kê đơn hàng --}}
-        @if ($orderStats)
         <div class="card">
             <div class="card-header"><h3 class="card-title"><i class="fas fa-shopping-bag text-info mr-2"></i>Thống kê đơn hàng</h3></div>
             <div class="card-body p-0">
@@ -68,7 +66,6 @@
                 </table>
             </div>
         </div>
-        @endif
     </div>
 
     {{-- Cột phải: thông tin chi tiết --}}
@@ -127,17 +124,83 @@
             </div>
         </div>
 
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-receipt text-primary mr-2"></i>Tất cả đơn hàng</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th class="pl-3">Mã đơn hàng</th>
+                                <th>Ngày đặt</th>
+                                <th>Tổng tiền</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($orders as $order)
+                                <tr>
+                                    <td class="pl-3">
+                                        <a href="{{ route('admin.orders.show', $order->id) }}">{{ $order->ma_don_hang ?? '#'.$order->id }}</a>
+                                    </td>
+                                    <td>{{ $order->ngay_dat ? \Illuminate\Support\Carbon::parse($order->ngay_dat)->format('d/m/Y H:i') : '—' }}</td>
+                                    <td>₫ {{ number_format((float) ($order->tong_tien ?? 0), 0, ',', '.') }}</td>
+                                    <td><span class="badge badge-{{ $order->status_badge }}">{{ $order->status_label }}</span></td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="text-center text-muted py-4">Khách hàng chưa có đơn hàng.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="far fa-comment-dots text-info mr-2"></i>Bình luận / đánh giá của khách hàng</h3>
+            </div>
+            <div class="card-body">
+                @forelse ($reviews as $review)
+                    <div class="{{ $loop->last ? '' : 'border-bottom mb-3 pb-3' }}">
+                        <div class="d-flex justify-content-between flex-wrap">
+                            <strong>{{ $review->ten_san_pham ?? 'Sản phẩm đã xóa' }}</strong>
+                            <span class="text-warning" aria-label="{{ $review->so_sao }} sao">
+                                @for ($star = 0; $star < (int) $review->so_sao; $star++)
+                                    <i class="fas fa-star"></i>
+                                @endfor
+                                <span class="text-muted small ml-1">{{ $review->so_sao ?? '—' }}/5</span>
+                            </span>
+                        </div>
+                        <p class="mb-1 mt-2">{{ $review->noi_dung ?: 'Không có nội dung bình luận.' }}</p>
+                        <small class="text-muted">
+                            {{ $review->ngay_dang ? \Illuminate\Support\Carbon::parse($review->ngay_dang)->format('d/m/Y H:i') : 'Không rõ ngày đăng' }}
+                            · Trạng thái: {{ $review->trang_thai ?? '—' }}
+                        </small>
+                    </div>
+                @empty
+                    <p class="text-muted text-center mb-0">Khách hàng chưa có bình luận hoặc đánh giá.</p>
+                @endforelse
+            </div>
+        </div>
+
         <div class="d-flex justify-content-between">
             <a href="{{ route('admin.users.index') }}" class="btn btn-default">
                 <i class="fas fa-arrow-left mr-1"></i>Quay lại danh sách
             </a>
-            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Bạn có chắc muốn xóa người dùng này? Thao tác không thể hoàn tác.')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-outline-danger btn-sm">
-                    <i class="far fa-trash-alt mr-1"></i>Xóa tài khoản
-                </button>
-            </form>
+            <div>
+                @include('admin.users._deletion-rules')
+                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="d-inline"
+                    onsubmit="return confirm('Bạn có chắc muốn xóa khách hàng này? Thao tác không thể hoàn tác.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="far fa-trash-alt mr-1"></i>Xóa tài khoản
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
