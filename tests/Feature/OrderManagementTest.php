@@ -37,6 +37,8 @@ class OrderManagementTest extends TestCase
             $table->decimal('tien_hang', 12, 0)->nullable();
             $table->decimal('phi_van_chuyen', 12, 0)->nullable();
             $table->decimal('tien_giam', 12, 0)->nullable();
+            $table->decimal('tien_giam_khuyen_mai', 12, 0)->nullable();
+            $table->decimal('tien_giam_voucher', 12, 0)->nullable();
             $table->decimal('tong_tien', 12, 0)->nullable();
             $table->text('ghi_chu')->nullable();
             $table->unsignedInteger('phuong_thuc_thanh_toan_id')->nullable();
@@ -50,6 +52,11 @@ class OrderManagementTest extends TestCase
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
             $table->decimal('thanh_tien', 12, 0)->nullable();
+            $table->decimal('gia_goc', 12, 0)->nullable();
+            $table->decimal('tien_giam_khuyen_mai', 12, 0)->nullable();
+            $table->unsignedInteger('khuyen_mai_id')->nullable();
+            $table->string('ten_khuyen_mai')->nullable();
+            $table->decimal('phan_tram_giam', 5, 2)->nullable();
         });
         Schema::create('lich_su_trang_thai_don_hangs', function (Blueprint $table) {
             $table->increments('id');
@@ -121,6 +128,39 @@ class OrderManagementTest extends TestCase
             ->assertSee('Thanh toán khi nhận hàng')
             ->assertSee('Đã thanh toán')
             ->assertSee('Đơn mới được tạo.');
+    }
+
+    public function test_order_detail_shows_saved_promotion_and_voucher_discount_breakdown(): void
+    {
+        $orderId = $this->createOrder([
+            'ma_don_hang' => 'ORD-PROMO',
+            'tien_hang' => 500000,
+            'tien_giam' => 125000,
+            'tien_giam_khuyen_mai' => 100000,
+            'tien_giam_voucher' => 25000,
+            'tong_tien' => 375000,
+        ]);
+        DB::table('chi_tiet_don_hangs')->insert([
+            'don_hang_id' => $orderId,
+            'ten_san_pham' => 'Áo giảm giá',
+            'don_gia' => 400000,
+            'gia_goc' => 500000,
+            'so_luong' => 1,
+            'thanh_tien' => 400000,
+            'tien_giam_khuyen_mai' => 100000,
+            'khuyen_mai_id' => 2,
+            'ten_khuyen_mai' => 'Sale mùa lễ',
+            'phan_tram_giam' => 20,
+        ]);
+
+        $this->get(route('admin.orders.show', $orderId))
+            ->assertOk()
+            ->assertSee('Sale mùa lễ')
+            ->assertSee('500.000 ₫')
+            ->assertSee('Giảm từ chương trình')
+            ->assertSee('100.000 ₫')
+            ->assertSee('Giảm từ voucher')
+            ->assertSee('25.000 ₫');
     }
 
     public function test_staff_can_advance_order_status_and_history_is_recorded(): void

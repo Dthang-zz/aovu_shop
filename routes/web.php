@@ -4,13 +4,27 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VariantController;
+use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
 Route::get('/admin', DashboardController::class)->name('admin.dashboard');
+
+Route::get('/shop', [StorefrontController::class, 'index'])->name('shop.products.index');
+Route::get('/shop/{product}', [StorefrontController::class, 'show'])
+    ->whereNumber('product')
+    ->name('shop.products.show');
+Route::post('/cart/items', [StorefrontController::class, 'addToCart'])->name('shop.cart.items.store');
+Route::get('/cart', [StorefrontController::class, 'cart'])->name('shop.cart');
+Route::patch('/cart/items/{item}', [StorefrontController::class, 'updateCart'])->name('shop.cart.items.update');
+Route::delete('/cart/items/{item}', [StorefrontController::class, 'removeFromCart'])->name('shop.cart.items.destroy');
+Route::get('/checkout', [StorefrontController::class, 'checkout'])->name('shop.checkout');
+Route::post('/checkout', [StorefrontController::class, 'placeOrder'])->name('shop.checkout.store');
+Route::get('/checkout/success', [StorefrontController::class, 'orderConfirmation'])->name('shop.checkout.success');
 
 // Quản lý danh mục
 Route::resource('/admin/categories', CategoryController::class)
@@ -61,6 +75,9 @@ Route::resource('/admin/users', UserController::class)
 Route::patch('/admin/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
     ->name('admin.users.toggle-status');
 
+Route::resource('/admin/promotions', PromotionController::class)
+    ->names('admin.promotions');
+
 // Quản lý đổi trả
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
     ->name('admin.returns.index');
@@ -74,25 +91,6 @@ Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'u
 // Các trang quản trị dạng tĩnh khác
 Route::get('/admin/{section}', function (string $section) {
     $pages = [
-        'promotions' => [
-            'title' => 'Khuyến mãi',
-            'subtitle' => 'Quản lý mã giảm giá và chương trình ưu đãi.',
-            'icon' => 'fas fa-tags',
-            'action' => 'Tạo khuyến mãi',
-            'recordLabel' => 'Chương trình',
-            'stats' => [
-                ['Chương trình', '12', 'fas fa-tags', 'primary'],
-                ['Đang diễn ra', '04', 'fas fa-bolt', 'success'],
-                ['Lượt sử dụng', '826', 'fas fa-ticket-alt', 'info'],
-            ],
-            'columns' => ['Mã ưu đãi', 'Giảm giá', 'Thời hạn'],
-            'rows' => [
-                ['title' => 'Ưu đãi tháng 10', 'meta' => 'Áp dụng toàn cửa hàng', 'cells' => ['THANG10', 'Giảm 15%', '01/10 – 31/10'], 'status' => ['Đang diễn ra', 'success']],
-                ['title' => 'Khách hàng mới', 'meta' => 'Đơn hàng đầu tiên', 'cells' => ['WELCOME50', 'Giảm ₫ 50.000', 'Đến 30/11'], 'status' => ['Đang diễn ra', 'success']],
-                ['title' => 'Ưu đãi sinh nhật', 'meta' => 'Khách hàng thành viên', 'cells' => ['HAPPYBDAY', 'Giảm 20%', '01/01 – 31/12'], 'status' => ['Đang diễn ra', 'success']],
-                ['title' => 'Sale cuối hè', 'meta' => 'Sản phẩm chọn lọc', 'cells' => ['SUMMER25', 'Giảm 25%', 'Đã kết thúc'], 'status' => ['Đã kết thúc', 'secondary']],
-            ],
-        ],
         'reviews' => [
             'title' => 'Đánh giá sản phẩm',
             'subtitle' => 'Theo dõi phản hồi và nội dung cần được kiểm duyệt.',
@@ -118,6 +116,5 @@ Route::get('/admin/{section}', function (string $section) {
 
     return view('admin.resource', ['page' => $pages[$section], 'section' => $section]);
 })->whereIn('section', [
-    'promotions',
     'reviews',
 ])->name('admin.resource');

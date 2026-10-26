@@ -249,7 +249,7 @@
                         aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block">
-                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-muted">Cửa hàng</a>
+                    <a href="{{ route('shop.products.index') }}" class="nav-link text-muted">Cửa hàng</a>
                 </li>
             </ul>
             <ul class="navbar-nav ml-auto align-items-center">
@@ -353,8 +353,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'promotions']) }}"
-                                class="nav-link {{ ($section ?? '') === 'promotions' ? 'active' : '' }}">
+                            <a href="{{ route('admin.promotions.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tags"></i>
                                 <p>Khuyến mãi</p>
                             </a>
