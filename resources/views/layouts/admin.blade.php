@@ -344,12 +344,27 @@
                                 <p>Đổi / trả hàng</p>
                             </a>
                         </li>
+                        <li class="nav-header">QUẢN LÝ TÀI CHÍNH</li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.finance.refunds.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.finance.refunds.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-wallet"></i>
+                                <p>Ví hoàn tiền</p>
+                            </a>
+                        </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
                         <li class="nav-item">
                             <a href="{{ route('admin.users.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>Khách hàng</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.support-chat.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.support-chat.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-comments"></i>
+                                <p>CSKH trực tuyến</p>
                             </a>
                         </li>
                         <li class="nav-item">

@@ -8,11 +8,14 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReturnRequestController;
+use App\Http\Controllers\Admin\RefundWalletController;
 use App\Http\Controllers\Admin\ReviewController;
+use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VariantController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\SupportChatController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
@@ -31,6 +34,40 @@ Route::delete('/cart/items/{item}', [StorefrontController::class, 'removeFromCar
 Route::get('/checkout', [StorefrontController::class, 'checkout'])->name('shop.checkout');
 Route::post('/checkout', [StorefrontController::class, 'placeOrder'])->name('shop.checkout.store');
 Route::get('/checkout/success', [StorefrontController::class, 'orderConfirmation'])->name('shop.checkout.success');
+
+Route::get('/support-chat', [SupportChatController::class, 'index'])
+    ->middleware('throttle:60,1')
+    ->name('support-chat.index');
+Route::post('/support-chat/messages', [SupportChatController::class, 'store'])
+    ->middleware('throttle:30,1')
+    ->name('support-chat.store');
+
+Route::prefix('/admin/support-chat')->name('admin.support-chat.')->group(function () {
+    Route::get('/', [AdminSupportChatController::class, 'index'])->name('index');
+    Route::get('/customers', [AdminSupportChatController::class, 'customers'])->name('customers');
+    Route::get('/customers/{customer}/orders', [AdminSupportChatController::class, 'orders'])
+        ->whereNumber('customer')
+        ->name('customers.orders');
+    Route::get('/orders/{order}/items', [AdminSupportChatController::class, 'orderItems'])
+        ->whereNumber('order')
+        ->name('orders.items');
+    Route::post('/conversations/{conversation}/return-requests', [ReturnRequestController::class, 'storeFromConversation'])
+        ->whereNumber('conversation')
+        ->middleware('throttle:20,1')
+        ->name('return-requests.store');
+    Route::get('/conversations/{conversation}/messages', [AdminSupportChatController::class, 'messages'])
+        ->whereNumber('conversation')
+        ->middleware('throttle:60,1')
+        ->name('messages');
+    Route::post('/conversations/{conversation}/messages', [AdminSupportChatController::class, 'storeMessage'])
+        ->whereNumber('conversation')
+        ->middleware('throttle:30,1')
+        ->name('messages.store');
+    Route::patch('/conversations/{conversation}/status', [AdminSupportChatController::class, 'updateStatus'])
+        ->whereNumber('conversation')
+        ->middleware('throttle:30,1')
+        ->name('status.update');
+});
 
 // Quản lý danh mục
 Route::resource('/admin/categories', CategoryController::class)
@@ -87,12 +124,20 @@ Route::resource('/admin/promotions', PromotionController::class)
 // Quản lý đổi trả
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
     ->name('admin.returns.index');
+Route::get('/admin/returns/create', [ReturnRequestController::class, 'create'])
+    ->name('admin.returns.create');
+Route::post('/admin/returns', [ReturnRequestController::class, 'store'])
+    ->middleware('throttle:20,1')
+    ->name('admin.returns.store');
 Route::get('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'show'])
     ->whereNumber('returnRequest')
     ->name('admin.returns.show');
 Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'update'])
     ->whereNumber('returnRequest')
     ->name('admin.returns.update');
+
+Route::get('/admin/finance/refunds', [RefundWalletController::class, 'index'])
+    ->name('admin.finance.refunds.index');
 
 Route::get('/admin/reviews', [ReviewController::class, 'index'])->name('admin.reviews.index');
 Route::get('/admin/reviews/{review}', [ReviewController::class, 'show'])

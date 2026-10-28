@@ -234,6 +234,11 @@ class UserController extends Controller
                         ReturnRequest::STATUS_PENDING,
                         ReturnRequest::STATUS_PROCESSING,
                         ReturnRequest::STATUS_APPROVED,
+                        ReturnRequest::STATUS_AWAITING_RETURN,
+                        ReturnRequest::STATUS_RETURN_RECEIVED,
+                        ReturnRequest::STATUS_INSPECTED,
+                        ReturnRequest::STATUS_REFUNDED,
+                        ReturnRequest::STATUS_EXCHANGE_SHIPPED,
                     ])
                     ->exists()) {
                 return 'Khách hàng có yêu cầu đổi/trả đang xử lý nên không thể xóa. Hãy xử lý yêu cầu hoặc khóa tài khoản.';
