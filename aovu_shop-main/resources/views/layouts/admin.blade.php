@@ -348,6 +348,12 @@
                                 <p>Đổi / trả hàng</p><span class="right badge badge-info">{{ number_format($pendingReturnCount) }}</span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.wallets.index') }}" class="nav-link {{ request()->routeIs('admin.wallets.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-wallet"></i>
+                                <p>Ví hoàn tiền</p>
+                            </a>
+                        </li>
                     </ul>
                 </nav>
             </div>

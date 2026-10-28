@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Admin\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
@@ -58,6 +59,22 @@ Route::delete('/admin/vouchers/bulk-destroy', [VoucherController::class, 'bulkDe
     ->name('admin.vouchers.bulk-destroy');
 Route::get('/admin/vouchers-export', [VoucherController::class, 'export'])
     ->name('admin.vouchers.export');
+
+// ─── Ví hoàn tiền ──────────────────────────────
+Route::get('/admin/wallets', [WalletController::class, 'index'])
+    ->name('admin.wallets.index');
+Route::get('/admin/wallets/{wallet}', [WalletController::class, 'show'])
+    ->whereNumber('wallet')
+    ->name('admin.wallets.show');
+Route::post('/admin/wallets/{wallet}/adjust', [WalletController::class, 'adjust'])
+    ->whereNumber('wallet')
+    ->name('admin.wallets.adjust');
+Route::patch('/admin/wallets/{wallet}/toggle', [WalletController::class, 'toggleStatus'])
+    ->whereNumber('wallet')
+    ->name('admin.wallets.toggle');
+Route::get('/admin/wallets/{wallet}/export', [WalletController::class, 'exportTransactions'])
+    ->whereNumber('wallet')
+    ->name('admin.wallets.export');
 
 Route::get('/admin/{section}', function (string $section) {
     $pages = [
