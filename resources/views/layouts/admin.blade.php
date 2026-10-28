@@ -211,8 +211,13 @@
         }
 
         @keyframes spa-content-enter {
-            from { opacity: .65; }
-            to { opacity: 1; }
+            from {
+                opacity: .65;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @media (max-width: 767.98px) {
@@ -240,7 +245,8 @@
         <nav class="main-header navbar navbar-expand navbar-white navbar-light">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" data-widget="pushmenu" href="#" role="button" aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"
+                        aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block">
                     <a href="{{ route('admin.dashboard') }}" class="nav-link text-muted">Cửa hàng</a>
@@ -248,104 +254,116 @@
             </ul>
             <ul class="navbar-nav ml-auto align-items-center">
                 <li class="nav-item mr-2 d-none d-md-block">
-                    <span class="nav-link text-muted small"><i class="far fa-calendar-alt mr-1"></i> Hôm nay, {{ now()->format('d/m/Y') }}</span>
+                    <span class="nav-link text-muted small"><i class="far fa-calendar-alt mr-1"></i> Hôm nay,
+                        {{ now()->format('d/m/Y') }}</span>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link" data-toggle="dropdown" href="#" aria-label="Thông báo">
-                        <i class="far fa-bell"></i><span class="badge badge-warning navbar-badge">{{ number_format($notificationCount) }}</span>
+                        <i class="far fa-bell"></i><span
+                            class="badge badge-warning navbar-badge">{{ number_format($notificationCount) }}</span>
                     </a>
                     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <span class="dropdown-header">{{ number_format($notificationCount) }} thông báo cần lưu ý</span>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="dropdown-item"><i class="fas fa-shopping-bag mr-2 text-primary"></i> {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
+                        <a href="{{ route('admin.orders.index') }}" class="dropdown-item"><i
+                                class="fas fa-shopping-bag mr-2 text-primary"></i>
+                            {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'inventory']) }}" class="dropdown-item"><i class="fas fa-exclamation-triangle mr-2 text-warning"></i> {{ number_format($lowStockVariantCount) }} biến thể sắp hết hàng</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.returns.index') }}" class="dropdown-item"><i class="fas fa-exchange-alt mr-2 text-warning"></i> {{ number_format($pendingReturnCount) }} yêu cầu đổi/trả chờ xử lý</a>
+                        <a href="{{ route('admin.returns.index') }}" class="dropdown-item"><i
+                                class="fas fa-exchange-alt mr-2 text-warning"></i>
+                            {{ number_format($pendingReturnCount) }} yêu cầu đổi/trả chờ xử lý</a>
                     </div>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block ml-2">
-                    <span class="nav-link py-1"><img src="{{ asset('adminlte/img/avatar4.png') }}" alt="Ảnh quản trị viên" class="img-circle elevation-1" width="30" height="30"></span>
+                    <span class="nav-link py-1"><img src="{{ asset('adminlte/img/avatar4.png') }}"
+                            alt="Ảnh quản trị viên" class="img-circle elevation-1" width="30" height="30"></span>
                 </li>
             </ul>
         </nav>
 
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
-            <a href="{{ route('admin.dashboard') }}" class="brand-link d-flex align-items-center justify-content-center">
+            <a href="{{ route('admin.dashboard') }}"
+                class="brand-link d-flex align-items-center justify-content-center">
                 <span class="brand-text">AOVU</span>
             </a>
             <div class="sidebar">
                 <div class="user-panel mt-3 pb-3 mb-2 d-flex align-items-center">
-                    <div class="image"><img src="{{ asset('adminlte/img/avatar4.png') }}" class="img-circle elevation-1" alt="Quản trị viên"></div>
+                    <div class="image"><img src="{{ asset('adminlte/img/avatar4.png') }}"
+                            class="img-circle elevation-1" alt="Quản trị viên"></div>
                     <div class="info">
                         <a href="#" class="d-block">Quản trị viên</a>
-                        <span class="text-success small"><i class="fas fa-circle" style="font-size:7px"></i> Đang hoạt động</span>
+                        <span class="text-success small"><i class="fas fa-circle" style="font-size:7px"></i> Đang hoạt
+                            động</span>
                     </div>
                 </div>
                 <nav class="mt-2">
-                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
+                        data-accordion="false">
                         <li class="nav-header">TỔNG QUAN</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('admin.dashboard') }}"
+                                class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-th-large"></i>
                                 <p>Dashboard</p>
                             </a>
                         </li>
                         <li class="nav-header">SẢN PHẨM</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.categories.index') }}" class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.categories.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-sitemap"></i>
                                 <p>Danh mục</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.products.index') }}" class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.products.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tshirt"></i>
-                                <p>Sản phẩm</p><span class="right badge badge-primary">{{ number_format($productCount) }}</span>
+                                <p>Sản phẩm</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'variants']) }}" class="nav-link {{ ($section ?? '') === 'variants' ? 'active' : '' }}">
+                            <a href="{{ route('admin.variants.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.variants.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-layer-group"></i>
                                 <p>Thuộc tính & biến thể</p>
                             </a>
                         </li>
                         <li class="nav-header">VẬN HÀNH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'inventory']) }}" class="nav-link {{ ($section ?? '') === 'inventory' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-warehouse"></i>
-                                <p>Kho hàng</p><span class="right badge badge-warning">8</span>
+                            <a href="{{ route('admin.orders.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-shopping-bag"></i>
+                                <p>Đơn hàng</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="nav-link {{ ($section ?? '') === 'orders' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-shopping-bag"></i>
-                                <p>Đơn hàng</p><span class="right badge badge-danger">18</span>
+                            <a href="{{ route('admin.returns.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-exchange-alt"></i>
+                                <p>Đổi / trả hàng</p>
                             </a>
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'users']) }}" class="nav-link {{ ($section ?? '') === 'users' ? 'active' : '' }}">
+                            <a href="{{ route('admin.users.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
-                                <p>Người dùng</p>
+                                <p>Khách hàng</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'promotions']) }}" class="nav-link {{ ($section ?? '') === 'promotions' ? 'active' : '' }}">
+                            <a href="{{ route('admin.resource', ['section' => 'promotions']) }}"
+                                class="nav-link {{ ($section ?? '') === 'promotions' ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tags"></i>
                                 <p>Khuyến mãi</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'reviews']) }}" class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
+                            <a href="{{ route('admin.resource', ['section' => 'reviews']) }}"
+                                class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>
-                                <p>Đánh giá</p><span class="right badge badge-warning">12</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.returns.index') }}" class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-exchange-alt"></i>
-                                <p>Đổi / trả hàng</p><span class="right badge badge-info">{{ number_format($pendingReturnCount) }}</span>
+                                <p>Đánh giá</p>
                             </a>
                         </li>
                     </ul>
@@ -363,11 +381,12 @@
                         </div>
                         <div class="col-sm-5">
                             <ol class="breadcrumb float-sm-right mb-0">
-                                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Trang chủ</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Trang chủ</a>
+                                </li>
                                 @hasSection('breadcrumb')
-                                <li class="breadcrumb-item active">@yield('breadcrumb')</li>
+                                    <li class="breadcrumb-item active">@yield('breadcrumb')</li>
                                 @else
-                                <li class="breadcrumb-item active">Dashboard</li>
+                                    <li class="breadcrumb-item active">Dashboard</li>
                                 @endif
                             </ol>
                         </div>

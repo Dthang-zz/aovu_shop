@@ -17,18 +17,75 @@ class CategoryManagementTest extends TestCase
             'ten_danh_muc' => 'Thời trang nữ',
             'trang_thai' => true,
         ]);
-        Category::create([
+        $child = Category::create([
             'ten_danh_muc' => 'Đầm váy',
             'danh_muc_cha_id' => $parent->id,
             'trang_thai' => false,
+        ]);
+        Category::create([
+            'ten_danh_muc' => 'Đầm dự tiệc',
+            'danh_muc_cha_id' => $child->id,
+            'trang_thai' => true,
         ]);
 
         $this->get(route('admin.categories.index'))
             ->assertOk()
             ->assertSee('Thời trang nữ')
             ->assertSee('Đầm váy')
+            ->assertSeeInOrder(['Thời trang nữ', 'Đầm váy', 'Đầm dự tiệc'])
+            ->assertSee('padding-left: 1.25rem')
+            ->assertSee('padding-left: 2.5rem')
             ->assertSee('Đang ẩn')
             ->assertSee('Tổng danh mục');
+    }
+
+    public function test_category_details_show_the_number_of_products(): void
+    {
+        $category = Category::create([
+            'ten_danh_muc' => 'Áo nữ',
+            'trang_thai' => true,
+        ]);
+        $child = Category::create([
+            'ten_danh_muc' => 'Áo sơ mi',
+            'danh_muc_cha_id' => $category->id,
+            'trang_thai' => true,
+        ]);
+
+        DB::table('san_phams')->insert([
+            ['ma_san_pham' => 'AO-NU-001', 'danh_muc_id' => $category->id],
+            ['ma_san_pham' => 'AO-NU-002', 'danh_muc_id' => $category->id],
+            ['ma_san_pham' => 'AO-SM-001', 'danh_muc_id' => $child->id],
+        ]);
+
+        $this->get(route('admin.categories.show', $category))
+            ->assertOk()
+            ->assertSee('Áo nữ')
+            ->assertSeeText('2')
+            ->assertSee('Sản phẩm trong danh mục')
+            ->assertSee('Áo sơ mi');
+    }
+
+    public function test_deleting_parent_category_keeps_children_without_a_parent(): void
+    {
+        $parent = Category::create([
+            'ten_danh_muc' => 'Thời trang nữ',
+            'trang_thai' => true,
+        ]);
+        $child = Category::create([
+            'ten_danh_muc' => 'Đầm váy',
+            'danh_muc_cha_id' => $parent->id,
+            'trang_thai' => true,
+        ]);
+
+        $this->delete(route('admin.categories.destroy', $parent))
+            ->assertRedirect(route('admin.categories.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('danh_mucs', ['id' => $parent->id]);
+        $this->assertDatabaseHas('danh_mucs', [
+            'id' => $child->id,
+            'danh_muc_cha_id' => null,
+        ]);
     }
 
     public function test_category_can_be_created_updated_and_deleted(): void

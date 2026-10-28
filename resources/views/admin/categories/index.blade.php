@@ -91,14 +91,19 @@
                     @forelse ($categories as $category)
                     <tr>
                         <td class="pl-3">
-                            <div class="font-weight-bold text-dark">{{ $category->ten_danh_muc }}</div>
+                            <div class="font-weight-bold text-dark" style="padding-left: {{ $category->hierarchy_depth * 1.25 }}rem">
+                                @if ($category->hierarchy_depth > 0)
+                                <i class="fas fa-level-up-alt fa-rotate-90 text-muted mr-1" aria-hidden="true"></i>
+                                @endif
+                                {{ $category->ten_danh_muc }}
+                            </div>
                             @if ($category->mo_ta)
                             <small class="text-muted">{{ \Illuminate\Support\Str::limit($category->mo_ta, 90) }}</small>
                             @endif
                         </td>
                         <td>{{ $category->parent?->ten_danh_muc ?? '—' }}</td>
                         <td>{{ number_format($category->children_count) }}</td>
-                        <td>{{ number_format($productCounts->get($category->id, 0)) }}</td>
+                        <td>{{ number_format($category->products_count) }}</td>
                         <td>
                             @if ($category->trang_thai)
                             <span class="badge badge-success px-2 py-1">Đang hiển thị</span>
@@ -107,8 +112,9 @@
                             @endif
                         </td>
                         <td class="text-right pr-3 text-nowrap">
+                            <a href="{{ route('admin.categories.show', $category) }}" class="btn btn-default btn-sm text-info" aria-label="Xem chi tiết {{ $category->ten_danh_muc }}"><i class="far fa-eye"></i></a>
                             <a href="{{ route('admin.categories.edit', $category) }}" class="btn btn-default btn-sm text-primary" aria-label="Chỉnh sửa {{ $category->ten_danh_muc }}"><i class="far fa-edit"></i></a>
-                            <form method="POST" action="{{ route('admin.categories.destroy', $category) }}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này?')">
+                            <form method="POST" action="{{ route('admin.categories.destroy', $category) }}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này? Các danh mục con sẽ được chuyển thành danh mục gốc.')">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-default btn-sm text-danger" aria-label="Xóa {{ $category->ten_danh_muc }}"><i class="far fa-trash-alt"></i></button>
