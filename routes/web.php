@@ -5,9 +5,16 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\PostController;
+use App\Http\Controllers\Admin\NewsCategoryController;
+use App\Http\Controllers\NewsController;    
 
 Route::get('/', DashboardController::class);
 Route::get('/admin', DashboardController::class)->name('admin.dashboard');
+Route::get('/admin/news-categories', [NewsCategoryController::class, 'index'])->name('admin.news-categories.index');
+Route::post('/admin/news-categories', [NewsCategoryController::class, 'store'])->name('admin.news-categories.store');
+Route::put('/admin/news-categories/{newsCategory}', [NewsCategoryController::class, 'update'])->name('admin.news-categories.update');
+Route::delete('/admin/news-categories/{newsCategory}', [NewsCategoryController::class, 'destroy'])->name('admin.news-categories.destroy');
 
 Route::resource('/admin/categories', CategoryController::class)
     ->except(['show'])
