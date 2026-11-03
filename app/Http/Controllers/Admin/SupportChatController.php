@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\ReturnRequest;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class SupportChatController extends Controller
@@ -88,9 +90,18 @@ class SupportChatController extends Controller
     {
         $orders = DB::table('don_hangs')
             ->where('tai_khoan_id', $customer)
+            ->where('trang_thai', Order::STATUS_COMPLETED)
             ->latest('ngay_dat')
             ->limit(50)
-            ->get(['id', 'ma_don_hang', 'ngay_dat', 'ten_nguoi_nhan']);
+            ->get($this->orderColumns(['id', 'ma_don_hang', 'ngay_dat', 'ten_nguoi_nhan']))
+            ->filter(fn (object $order): bool => ReturnRequest::isWithinReturnWindow($order))
+            ->map(fn (object $order): array => [
+                'id' => $order->id,
+                'ma_don_hang' => $order->ma_don_hang,
+                'ngay_dat' => $order->ngay_dat,
+                'ten_nguoi_nhan' => $order->ten_nguoi_nhan,
+            ])
+            ->values();
 
         return response()->json(['orders' => $orders]);
     }
@@ -100,12 +111,13 @@ class SupportChatController extends Controller
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:tai_khoans,id'],
         ]);
-        $orderBelongsToCustomer = DB::table('don_hangs')
+        $returnableOrder = DB::table('don_hangs')
             ->where('id', $order)
             ->where('tai_khoan_id', $data['customer_id'])
-            ->exists();
+            ->where('trang_thai', Order::STATUS_COMPLETED)
+            ->first($this->orderColumns(['id', 'ngay_dat']));
 
-        abort_unless($orderBelongsToCustomer, 404);
+        abort_unless($returnableOrder !== null && ReturnRequest::isWithinReturnWindow($returnableOrder), 404);
 
         $orderItems = DB::table('chi_tiet_don_hangs')
             ->where('don_hang_id', $order)
@@ -208,5 +220,18 @@ class SupportChatController extends Controller
                 'type' => $workflow->returnRequest?->typeLabel() ?? 'Đổi / trả hàng',
                 'status' => $workflow->returnRequest?->statusLabel() ?? 'Không xác định',
             ]);
+    }
+
+    /**
+     * Add the completion date column used by the return window when the legacy table has it.
+     *
+     * @param  array<int, string>  $columns
+     * @return array<int, string>
+     */
+    private function orderColumns(array $columns): array
+    {
+        return Schema::hasColumn('don_hangs', 'ngay_hoan_thanh')
+            ? [...$columns, 'ngay_hoan_thanh']
+            : $columns;
     }
 }

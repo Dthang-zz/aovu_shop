@@ -122,6 +122,29 @@ class DashboardTest extends TestCase
             ->assertSee('Còn 4');
     }
 
+    public function test_dashboard_subtracts_refunds_in_the_period_from_net_revenue(): void
+    {
+        $this->travelTo('2026-11-03 12:00:00');
+        DB::table('don_hangs')->insert([
+            'ma_don_hang' => 'ORD-PAID',
+            'ngay_dat' => '2026-11-02 10:00:00',
+            'tong_tien' => 800000,
+            'trang_thai_thanh_toan' => 1,
+            'trang_thai' => 3,
+        ]);
+        DB::table('support_return_workflows')->insert([
+            ['return_request_id' => 1, 'refund_amount' => 200000, 'refunded_at' => '2026-11-03 09:00:00'],
+            ['return_request_id' => 2, 'refund_amount' => 90000, 'refunded_at' => '2026-10-01 09:00:00'],
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertViewHas('revenueTotal', 800000.0)
+            ->assertViewHas('refundedTotal', 200000.0)
+            ->assertViewHas('netRevenue', 600000.0)
+            ->assertSee('Doanh thu thuần: <strong class="text-dark">₫ 600.000</strong>', false);
+    }
+
     public function test_inventory_page_is_no_longer_available(): void
     {
         $this->get('/admin/inventory')->assertNotFound();

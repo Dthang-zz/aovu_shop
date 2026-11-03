@@ -51,6 +51,7 @@
                             <select id="return-order" name="order_id" class="form-control" required disabled>
                                 <option value="">Chọn khách hàng trước</option>
                             </select>
+                            <small class="form-text text-muted">Chỉ áp dụng cho đơn hàng đã hoàn thành.</small>
                             @error('order_id')<div class="text-danger small">{{ $message }}</div>@enderror
                         </div>
 
@@ -170,7 +171,7 @@
                     });
                     orderSelect.disabled = data.orders.length === 0;
                     if (data.orders.length === 0) {
-                        orderSelect.replaceChildren(new Option('Khách hàng chưa có đơn hàng', ''));
+                        orderSelect.replaceChildren(new Option('Khách hàng chưa có đơn hàng hoàn thành', ''));
                     } else if (oldOrderId) {
                         orderSelect.value = oldOrderId;
                         if (orderSelect.value) orderSelect.dispatchEvent(new Event('change'));

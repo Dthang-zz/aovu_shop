@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
+use App\Models\ProductVariant;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -44,10 +45,12 @@ class OrderManagementTest extends TestCase
             $table->unsignedInteger('phuong_thuc_thanh_toan_id')->nullable();
             $table->unsignedTinyInteger('trang_thai_thanh_toan')->nullable();
             $table->unsignedTinyInteger('trang_thai')->nullable();
+            $table->dateTime('ngay_hoan_thanh')->nullable();
         });
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
+            $table->unsignedBigInteger('product_variant_id')->nullable();
             $table->string('ten_san_pham')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
@@ -218,6 +221,92 @@ class OrderManagementTest extends TestCase
             ])
             ->assertRedirect(route('admin.orders.show', $orderId))
             ->assertSessionHasErrors('trang_thai');
+    }
+
+    public function test_order_detail_page_is_read_only_and_links_to_the_edit_page(): void
+    {
+        $orderId = $this->createOrder(['ma_don_hang' => 'ORD-READONLY', 'trang_thai' => Order::STATUS_PENDING]);
+
+        $this->get(route('admin.orders.show', $orderId))
+            ->assertOk()
+            ->assertSee('Chờ xác nhận')
+            ->assertDontSee('name="trang_thai"', false)
+            ->assertDontSee(route('admin.orders.update', $orderId).'"', false)
+            ->assertSee(route('admin.orders.edit', $orderId));
+    }
+
+    public function test_order_edit_page_offers_only_the_allowed_next_statuses(): void
+    {
+        $orderId = $this->createOrder(['ma_don_hang' => 'ORD-EDIT', 'trang_thai' => Order::STATUS_PENDING]);
+
+        $this->get(route('admin.orders.edit', $orderId))
+            ->assertOk()
+            ->assertSee('ORD-EDIT')
+            ->assertSee(route('admin.orders.update', $orderId))
+            ->assertSee('<option value="'.Order::STATUS_PROCESSING.'"', false)
+            ->assertSee('<option value="'.Order::STATUS_CANCELLED.'"', false)
+            ->assertDontSee('<option value="'.Order::STATUS_COMPLETED.'"', false);
+    }
+
+    public function test_finished_order_has_no_status_form_on_edit_or_detail_page(): void
+    {
+        $orderId = $this->createOrder(['trang_thai' => Order::STATUS_COMPLETED]);
+
+        $this->get(route('admin.orders.show', $orderId))
+            ->assertOk()
+            ->assertDontSee(route('admin.orders.edit', $orderId))
+            ->assertSee('Đơn hàng đã kết thúc, không thể cập nhật thêm.');
+        $this->get(route('admin.orders.edit', $orderId))
+            ->assertOk()
+            ->assertDontSee('name="trang_thai"', false)
+            ->assertSee('Đơn hàng đã kết thúc, không thể cập nhật thêm.');
+    }
+
+    public function test_order_edit_page_returns_not_found_for_missing_order(): void
+    {
+        $this->get(route('admin.orders.edit', 999))->assertNotFound();
+    }
+
+    public function test_completing_a_cod_order_marks_it_paid_and_records_completion_date(): void
+    {
+        $this->travelTo('2026-11-03 10:00:00');
+        $orderId = $this->createOrder(['trang_thai' => Order::STATUS_SHIPPING]);
+
+        $this->put(route('admin.orders.update', $orderId), [
+            'trang_thai' => Order::STATUS_COMPLETED,
+        ])->assertRedirect(route('admin.orders.show', $orderId));
+
+        $this->assertDatabaseHas('don_hangs', [
+            'id' => $orderId,
+            'trang_thai' => Order::STATUS_COMPLETED,
+            'trang_thai_thanh_toan' => Order::PAYMENT_PAID,
+            'ngay_hoan_thanh' => '2026-11-03 10:00:00',
+        ]);
+    }
+
+    public function test_cancelling_an_order_returns_variant_stock(): void
+    {
+        DB::table('danh_mucs')->insert(['id' => 1, 'ten_danh_muc' => 'Áo']);
+        DB::table('san_phams')->insert(['id' => 10, 'ma_san_pham' => 'SP-10', 'ten_san_pham' => 'Áo Linen', 'danh_muc_id' => 1]);
+        $variant = ProductVariant::query()->create([
+            'product_id' => 10,
+            'sku' => 'LINEN-M',
+            'price' => 250000,
+            'stock' => 3,
+            'status' => ProductVariant::STATUS_ACTIVE,
+        ]);
+        $orderId = $this->createOrder(['trang_thai' => Order::STATUS_PROCESSING]);
+        DB::table('chi_tiet_don_hangs')->insert([
+            ['don_hang_id' => $orderId, 'product_variant_id' => $variant->id, 'ten_san_pham' => 'Áo Linen (M)', 'don_gia' => 250000, 'so_luong' => 2, 'thanh_tien' => 500000],
+            ['don_hang_id' => $orderId, 'product_variant_id' => null, 'ten_san_pham' => 'Tất', 'don_gia' => 30000, 'so_luong' => 1, 'thanh_tien' => 30000],
+        ]);
+
+        $this->put(route('admin.orders.update', $orderId), [
+            'trang_thai' => Order::STATUS_CANCELLED,
+        ])->assertRedirect(route('admin.orders.show', $orderId));
+
+        $this->assertDatabaseHas('don_hangs', ['id' => $orderId, 'trang_thai' => Order::STATUS_CANCELLED]);
+        $this->assertSame(5, $variant->fresh()->stock);
     }
 
     private function createOrder(array $attributes = []): int

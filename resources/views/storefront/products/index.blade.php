@@ -3,6 +3,28 @@
 @section('title', 'Sản phẩm')
 
 @section('content')
+    @if ($banners->isNotEmpty())
+        <div id="storefront-banners" class="carousel slide mb-4 overflow-hidden rounded shadow-sm" data-ride="carousel">
+            <ol class="carousel-indicators">
+                @foreach ($banners as $banner)
+                    <li data-target="#storefront-banners" data-slide-to="{{ $loop->index }}" @class(['active' => $loop->first])></li>
+                @endforeach
+            </ol>
+            <div class="carousel-inner">
+                @foreach ($banners as $banner)
+                    <div @class(['carousel-item', 'active' => $loop->first])>
+                        @if ($banner->link_url)<a href="{{ $banner->link_url }}">@endif
+                        <img src="{{ Storage::disk('public')->url($banner->image_path) }}" class="d-block w-100 storefront-banner" alt="{{ $banner->title }}">
+                        @if ($banner->link_url)</a>@endif
+                    </div>
+                @endforeach
+            </div>
+            @if ($banners->count() > 1)
+                <a class="carousel-control-prev" href="#storefront-banners" role="button" data-slide="prev"><span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="sr-only">Trước</span></a>
+                <a class="carousel-control-next" href="#storefront-banners" role="button" data-slide="next"><span class="carousel-control-next-icon" aria-hidden="true"></span><span class="sr-only">Tiếp</span></a>
+            @endif
+        </div>
+    @endif
     <div class="mb-4">
         <h1 class="h3 font-weight-bold">Sản phẩm</h1>
         <p class="text-muted mb-0">Khám phá bộ sưu tập mới nhất từ AOVU.</p>

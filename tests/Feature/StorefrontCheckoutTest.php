@@ -57,6 +57,7 @@ class StorefrontCheckoutTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
             $table->unsignedInteger('bien_the_id')->nullable();
+            $table->unsignedBigInteger('product_variant_id')->nullable();
             $table->string('ten_san_pham')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
@@ -66,6 +67,24 @@ class StorefrontCheckoutTest extends TestCase
             $table->unsignedInteger('khuyen_mai_id')->nullable();
             $table->string('ten_khuyen_mai')->nullable();
             $table->decimal('phan_tram_giam', 5, 2)->nullable();
+        });
+        Schema::create('chuc_vus', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('ten_chuc_vu')->nullable();
+            $table->text('mo_ta')->nullable();
+        });
+        Schema::create('tai_khoans', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('ho_ten', 50)->nullable();
+            $table->string('anh_dai_dien')->nullable();
+            $table->date('ngay_sinh')->nullable();
+            $table->string('email');
+            $table->string('so_dien_thoai', 15)->nullable();
+            $table->tinyInteger('gioi_tinh')->nullable();
+            $table->string('mat_khau')->nullable();
+            $table->unsignedInteger('chuc_vu_id')->nullable();
+            $table->tinyInteger('trang_thai')->nullable();
+            $table->dateTime('ngay_tao')->nullable();
         });
     }
 
@@ -131,6 +150,7 @@ class StorefrontCheckoutTest extends TestCase
         $this->assertDatabaseHas('chi_tiet_don_hangs', [
             'don_hang_id' => $order->id,
             'bien_the_id' => null,
+            'product_variant_id' => $variant->id,
             'ten_san_pham' => 'Áo STORE-002 (Xanh / M)',
             'don_gia' => 400000,
             'gia_goc' => 500000,
@@ -143,6 +163,41 @@ class StorefrontCheckoutTest extends TestCase
         ]);
         $this->assertDatabaseHas('vouchers', ['ma_voucher' => 'SAVE10', 'da_su_dung' => 1]);
         $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'stock' => 3]);
+    }
+
+    public function test_checkout_links_order_to_existing_account_with_the_same_email(): void
+    {
+        $product = $this->createProduct('STORE-010');
+        $accountId = DB::table('tai_khoans')->insertGetId([
+            'ho_ten' => 'Nguyễn An',
+            'email' => 'an@example.test',
+        ]);
+
+        $this->withSession(['storefront_cart' => [
+            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+        ]])->post(route('shop.checkout.store'), $this->checkoutPayload('AN@Example.test'))
+            ->assertRedirect(route('shop.checkout.success'));
+
+        $this->assertDatabaseHas('don_hangs', ['email_nguoi_nhan' => 'AN@Example.test', 'tai_khoan_id' => $accountId]);
+        $this->assertDatabaseCount('tai_khoans', 1);
+    }
+
+    public function test_checkout_creates_a_customer_account_for_a_new_email(): void
+    {
+        $product = $this->createProduct('STORE-011');
+        $customerRoleId = DB::table('chuc_vus')->insertGetId(['ten_chuc_vu' => 'Khách hàng']);
+
+        $this->withSession(['storefront_cart' => [
+            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+        ]])->post(route('shop.checkout.store'), $this->checkoutPayload('new@example.test'))
+            ->assertRedirect(route('shop.checkout.success'));
+
+        $account = DB::table('tai_khoans')->where('email', 'new@example.test')->first();
+        $this->assertNotNull($account);
+        $this->assertSame('Nguyễn An', $account->ho_ten);
+        $this->assertSame('0912345678', $account->so_dien_thoai);
+        $this->assertSame($customerRoleId, (int) $account->chuc_vu_id);
+        $this->assertDatabaseHas('don_hangs', ['email_nguoi_nhan' => 'new@example.test', 'tai_khoan_id' => $account->id]);
     }
 
     public function test_product_price_ignores_disabled_upcoming_and_other_product_promotions(): void
@@ -263,6 +318,19 @@ class StorefrontCheckoutTest extends TestCase
             ->assertSessionHasErrors('cart');
 
         $this->assertDatabaseCount('don_hangs', 0);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function checkoutPayload(string $email): array
+    {
+        return [
+            'ten_nguoi_nhan' => 'Nguyễn An',
+            'email_nguoi_nhan' => $email,
+            'sdt_nguoi_nhan' => '0912345678',
+            'dia_chi_nguoi_nhan' => '12 đường Mẫu',
+        ];
     }
 
     private function createProduct(string $code): Product

@@ -31,6 +31,7 @@ class ReturnRequestWorkflow extends Model
         'refund_method',
         'refund_reference',
         'refunded_at',
+        'restocked_at',
     ];
 
     protected function casts(): array
@@ -47,6 +48,7 @@ class ReturnRequestWorkflow extends Model
             'delivered_at' => 'datetime',
             'refund_amount' => 'integer',
             'refunded_at' => 'datetime',
+            'restocked_at' => 'datetime',
         ];
     }
 

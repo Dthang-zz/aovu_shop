@@ -103,7 +103,7 @@
                         <th>Loại yêu cầu</th>
                         <th>Ngày gửi</th>
                         <th>Trạng thái</th>
-                        <th class="text-right pr-3">Chi tiết</th>
+                        <th class="text-right pr-3 text-nowrap">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -145,6 +145,9 @@
                                 class="btn btn-default btn-sm text-info" aria-label="Mở hội thoại CSKH"><i class="fas fa-comments"></i></a>
                             @endif
                             <a href="{{ route('admin.returns.show', $returnRequest->id) }}" class="btn btn-default btn-sm text-primary" aria-label="Xem yêu cầu"><i class="far fa-eye"></i> Xem</a>
+                            @if (\App\Models\ReturnRequest::allowedStatuses((int) $returnRequest->trang_thai, (int) $returnRequest->loai_yeu_cau) !== [])
+                            <a href="{{ route('admin.returns.edit', $returnRequest->id) }}" class="btn btn-default btn-sm text-warning" aria-label="Xử lý yêu cầu"><i class="fas fa-edit"></i> Sửa</a>
+                            @endif
                         </td>
                     </tr>
                     @empty

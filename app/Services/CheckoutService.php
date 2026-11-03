@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\ChucVu;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\TaiKhoan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -166,7 +168,7 @@ class CheckoutService
             $orderCode = 'AO'.now()->format('ymd').Str::upper(Str::random(8));
             $orderData = [
                 'ma_don_hang' => $orderCode,
-                'tai_khoan_id' => null,
+                'tai_khoan_id' => $this->resolveCustomerAccountId($customer),
                 'ten_nguoi_nhan' => $customer['ten_nguoi_nhan'],
                 'email_nguoi_nhan' => $customer['email_nguoi_nhan'],
                 'sdt_nguoi_nhan' => $customer['sdt_nguoi_nhan'],
@@ -205,6 +207,7 @@ class CheckoutService
                 $itemData = [
                     'don_hang_id' => $orderId,
                     'bien_the_id' => null,
+                    'product_variant_id' => $variant?->id,
                     'ten_san_pham' => $line['product']->ten_san_pham.$variantDescription,
                     'don_gia' => $line['unit_price'],
                     'so_luong' => $line['quantity'],
@@ -231,6 +234,40 @@ class CheckoutService
 
             return ['order_code' => $orderCode, 'total' => $quote['total']];
         });
+    }
+
+    /**
+     * Link the order to the customer account that owns the checkout email, creating one when needed.
+     *
+     * @param  array<string, mixed>  $customer
+     */
+    private function resolveCustomerAccountId(array $customer): ?int
+    {
+        if (! Schema::hasTable('tai_khoans')) {
+            return null;
+        }
+
+        $email = Str::lower(trim((string) $customer['email_nguoi_nhan']));
+        $accountId = TaiKhoan::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->value('id');
+
+        if ($accountId !== null) {
+            return (int) $accountId;
+        }
+
+        $customerRoleId = Schema::hasTable('chuc_vus')
+            ? ChucVu::query()->where('ten_chuc_vu', 'Khách hàng')->value('id')
+            : null;
+
+        return (int) TaiKhoan::query()->create([
+            'ho_ten' => mb_substr(trim((string) $customer['ten_nguoi_nhan']), 0, 50),
+            'email' => $email,
+            'so_dien_thoai' => $customer['sdt_nguoi_nhan'],
+            'chuc_vu_id' => $customerRoleId,
+            'trang_thai' => true,
+            'ngay_tao' => now(),
+        ])->getKey();
     }
 
     private function findValidVoucher(?string $voucherCode, int $subtotal, bool $lockRows): ?object
