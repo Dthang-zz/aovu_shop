@@ -7,12 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 class Order extends Model
 {
     public const STATUS_PENDING = 0;
+
     public const STATUS_PROCESSING = 1;
+
     public const STATUS_SHIPPING = 2;
+
     public const STATUS_COMPLETED = 3;
+
     public const STATUS_CANCELLED = 4;
 
     public const PAYMENT_UNPAID = 0;
+
     public const PAYMENT_PAID = 1;
 
     protected $table = 'don_hangs';
@@ -21,6 +26,8 @@ class Order extends Model
 
     protected $fillable = [
         'trang_thai',
+        'trang_thai_thanh_toan',
+        'ngay_hoan_thanh',
     ];
 
     protected function casts(): array
@@ -28,6 +35,7 @@ class Order extends Model
         return [
             'tai_khoan_id' => 'integer',
             'ngay_dat' => 'datetime',
+            'ngay_hoan_thanh' => 'datetime',
             'tien_hang' => 'float',
             'phi_van_chuyen' => 'float',
             'tien_giam' => 'float',

@@ -74,6 +74,16 @@
         container.prepend(alert);
     }
 
+    function resetModalState() {
+        // Bootstrap attaches the backdrop and scroll lock to <body>, outside the swapped content.
+        document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) {
+            backdrop.remove();
+        });
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.body.style.removeProperty('overflow');
+    }
+
     function responsePage(html) {
         var parsed = new DOMParser().parseFromString(html, 'text/html');
         var selectors = ['.main-header', '.main-sidebar', '.content-wrapper', '.main-footer'];
@@ -171,6 +181,7 @@
             var currentState = Object.assign({}, window.history.state, { spaScrollY: window.scrollY });
             window.history.replaceState(currentState, '', window.location.href);
 
+            resetModalState();
             ['.main-header', '.main-sidebar', '.content-wrapper', '.main-footer'].forEach(function (selector) {
                 document.querySelector(selector).replaceWith(parsed.querySelector(selector));
             });
@@ -202,6 +213,9 @@
             }
         } catch (error) {
             console.error('Admin navigation failed:', error);
+            if (window.jQuery && window.jQuery.fn.modal) {
+                window.jQuery('.modal.show').modal('hide');
+            }
             showError(error.message || 'Không thể cập nhật nội dung. Vui lòng thử lại.');
         } finally {
             isNavigating = false;
@@ -241,6 +255,7 @@
         if (!isAdminUrl(action.href) || form.target) return;
 
         event.preventDefault();
+        if (method !== 'GET' && isNavigating) return;
 
         var formData;
         try {

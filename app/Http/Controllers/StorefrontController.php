@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Banner;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\CheckoutService;
@@ -24,6 +25,7 @@ class StorefrontController extends Controller
             ->get();
 
         return view('storefront.products.index', [
+            'banners' => Banner::query()->active()->ordered()->get(),
             'products' => $products,
             'quotes' => $pricing->quotes($products),
         ]);

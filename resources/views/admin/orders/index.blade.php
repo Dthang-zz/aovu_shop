@@ -57,7 +57,7 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th class="pl-3">Mã đơn</th><th>Khách hàng</th><th>Ngày đặt</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th class="text-right pr-3">Chi tiết</th></tr></thead>
+                <thead><tr><th class="pl-3">Mã đơn</th><th>Khách hàng</th><th>Ngày đặt</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th class="text-right pr-3">Thao tác</th></tr></thead>
                 <tbody>
                     @forelse ($orders as $order)
                         <tr>
@@ -67,7 +67,12 @@
                             <td class="font-weight-bold">{{ number_format((float) $order->tong_tien, 0, ',', '.') }} ₫</td>
                             <td>{{ \App\Models\Order::paymentStatusLabel($order->trang_thai_thanh_toan === null ? null : (int) $order->trang_thai_thanh_toan) }}</td>
                             <td><span class="badge badge-{{ $statusBadges[$order->trang_thai] ?? 'secondary' }} px-2 py-1">{{ $statuses[$order->trang_thai] ?? 'Không xác định' }}</span></td>
-                            <td class="text-right pr-3"><a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-default btn-sm text-primary"><i class="far fa-eye"></i> Xem</a></td>
+                            <td class="text-right pr-3 text-nowrap">
+                                <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-default btn-sm text-primary"><i class="far fa-eye"></i> Xem</a>
+                                @if (\App\Models\Order::allowedNextStatuses((int) $order->trang_thai) !== [])
+                                    <a href="{{ route('admin.orders.edit', $order->id) }}" class="btn btn-default btn-sm text-warning"><i class="fas fa-edit"></i> Sửa</a>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="text-center py-5"><i class="fas fa-inbox fa-2x text-muted mb-2"></i><div class="text-muted">Không tìm thấy đơn hàng phù hợp.</div></td></tr>

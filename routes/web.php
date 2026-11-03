@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\NewsArticleController;
@@ -7,8 +8,8 @@ use App\Http\Controllers\Admin\NewsCategoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PromotionController;
-use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\RefundWalletController;
+use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 use App\Http\Controllers\Admin\UserController;
@@ -108,6 +109,9 @@ Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orde
 Route::get('/admin/orders/{order}', [OrderController::class, 'show'])
     ->whereNumber('order')
     ->name('admin.orders.show');
+Route::get('/admin/orders/{order}/edit', [OrderController::class, 'edit'])
+    ->whereNumber('order')
+    ->name('admin.orders.edit');
 Route::put('/admin/orders/{order}', [OrderController::class, 'update'])
     ->whereNumber('order')
     ->name('admin.orders.update');
@@ -121,6 +125,9 @@ Route::patch('/admin/users/{user}/toggle-status', [UserController::class, 'toggl
 Route::resource('/admin/promotions', PromotionController::class)
     ->names('admin.promotions');
 
+Route::resource('/admin/banners', BannerController::class)
+    ->names('admin.banners');
+
 // Quản lý đổi trả
 Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
     ->name('admin.returns.index');
@@ -132,12 +139,18 @@ Route::post('/admin/returns', [ReturnRequestController::class, 'store'])
 Route::get('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'show'])
     ->whereNumber('returnRequest')
     ->name('admin.returns.show');
+Route::get('/admin/returns/{returnRequest}/edit', [ReturnRequestController::class, 'edit'])
+    ->whereNumber('returnRequest')
+    ->name('admin.returns.edit');
 Route::put('/admin/returns/{returnRequest}', [ReturnRequestController::class, 'update'])
     ->whereNumber('returnRequest')
     ->name('admin.returns.update');
 
 Route::get('/admin/finance/refunds', [RefundWalletController::class, 'index'])
     ->name('admin.finance.refunds.index');
+Route::post('/admin/finance/refunds/{returnRequest}/confirm-manual-payment', [RefundWalletController::class, 'confirmManualPayment'])
+    ->whereNumber('returnRequest')
+    ->name('admin.finance.refunds.confirm-manual-payment');
 
 Route::get('/admin/reviews', [ReviewController::class, 'index'])->name('admin.reviews.index');
 Route::get('/admin/reviews/{review}', [ReviewController::class, 'show'])

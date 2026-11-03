@@ -122,6 +122,10 @@ $periodLabel = $period === 'custom'
                     <h2 class="mb-0 mr-2">₫ {{ number_format($revenueTotal, 0, ',', '.') }}</h2>
                     <span class="text-muted small">{{ $periodLabel }}</span>
                 </div>
+                <div class="small text-muted mb-3">
+                    Đã hoàn tiền: <span class="text-danger">₫ {{ number_format($refundedTotal, 0, ',', '.') }}</span>
+                    · Doanh thu thuần: <strong class="text-dark">₫ {{ number_format($netRevenue, 0, ',', '.') }}</strong>
+                </div>
                 <div class="position-relative" style="height: 280px">
                     <canvas id="revenueChart" aria-label="Biểu đồ doanh thu" role="img"></canvas>
                 </div>

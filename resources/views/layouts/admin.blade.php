@@ -375,6 +375,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a href="{{ route('admin.banners.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-image"></i>
+                                <p>Banner</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{{ route('admin.reviews.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>

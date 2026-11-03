@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReturnRequest extends Model
 {
@@ -31,6 +34,8 @@ class ReturnRequest extends Model
     public const TYPE_EXCHANGE = 1;
 
     public const TYPE_RETURN = 2;
+
+    public const RETURN_WINDOW_DAYS = 7;
 
     protected $table = 'yeu_cau_doi_tras';
 
@@ -138,12 +143,56 @@ class ReturnRequest extends Model
                 ? [self::STATUS_AWAITING_RETURN, self::STATUS_INSPECTED]
                 : [self::STATUS_AWAITING_RETURN],
             self::STATUS_AWAITING_RETURN => [self::STATUS_RETURN_RECEIVED],
-            self::STATUS_RETURN_RECEIVED => [self::STATUS_INSPECTED],
+            self::STATUS_RETURN_RECEIVED => [self::STATUS_INSPECTED, self::STATUS_REJECTED],
             self::STATUS_INSPECTED => $requestType === self::TYPE_RETURN
                 ? []
                 : [self::STATUS_EXCHANGE_SHIPPED],
             self::STATUS_REFUNDED, self::STATUS_EXCHANGE_SHIPPED => [self::STATUS_COMPLETED],
             default => [],
         };
+    }
+
+    /**
+     * Resolve when an order was completed, falling back to the status history and order date for legacy orders.
+     */
+    public static function orderCompletedAt(object $order): ?Carbon
+    {
+        if (filled($order->ngay_hoan_thanh ?? null)) {
+            return Carbon::parse($order->ngay_hoan_thanh);
+        }
+
+        if (Schema::hasTable('lich_su_trang_thai_don_hangs')) {
+            $completedAt = DB::table('lich_su_trang_thai_don_hangs')
+                ->where('don_hang_id', $order->id)
+                ->where('trang_thai', Order::STATUS_COMPLETED)
+                ->max('ngay_cap_nhat');
+
+            if ($completedAt !== null) {
+                return Carbon::parse($completedAt);
+            }
+        }
+
+        return filled($order->ngay_dat ?? null) ? Carbon::parse($order->ngay_dat) : null;
+    }
+
+    public static function isWithinReturnWindow(object $order): bool
+    {
+        $completedAt = self::orderCompletedAt($order);
+
+        return $completedAt === null
+            || $completedAt->copy()->addDays(self::RETURN_WINDOW_DAYS)->endOfDay()->gte(now());
+    }
+
+    /**
+     * Amount the customer actually paid for the returned units: the sale price minus their share of the order voucher.
+     */
+    public static function refundableAmount(int $unitPrice, int $quantity, int $orderVoucherDiscount, int $orderSubtotal): int
+    {
+        $itemsValue = max(0, $unitPrice * $quantity);
+        $voucherShare = $orderSubtotal > 0
+            ? (int) round($orderVoucherDiscount * $itemsValue / $orderSubtotal)
+            : 0;
+
+        return max(0, $itemsValue - min($itemsValue, $voucherShare));
     }
 }

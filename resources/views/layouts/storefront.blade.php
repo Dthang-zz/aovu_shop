@@ -13,6 +13,7 @@
         .storefront-header a { color: #fff; }
         .storefront-card { border: 0; border-radius: 10px; box-shadow: 0 2px 12px rgba(31,45,61,.08); }
         .storefront-image { height: 220px; object-fit: cover; }
+        .storefront-banner { height: min(36vw, 430px); min-height: 160px; object-fit: cover; }
         .price-old { color: #8993a2; text-decoration: line-through; }
     </style>
     @yield('styles')
