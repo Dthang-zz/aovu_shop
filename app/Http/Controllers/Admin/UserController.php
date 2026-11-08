@@ -230,16 +230,7 @@ class UserController extends Controller
                 && Schema::hasColumn('yeu_cau_doi_tras', 'trang_thai')
                 && DB::table('yeu_cau_doi_tras')
                     ->where('tai_khoan_id', $user->getKey())
-                    ->whereIn('trang_thai', [
-                        ReturnRequest::STATUS_PENDING,
-                        ReturnRequest::STATUS_PROCESSING,
-                        ReturnRequest::STATUS_APPROVED,
-                        ReturnRequest::STATUS_AWAITING_RETURN,
-                        ReturnRequest::STATUS_RETURN_RECEIVED,
-                        ReturnRequest::STATUS_INSPECTED,
-                        ReturnRequest::STATUS_REFUNDED,
-                        ReturnRequest::STATUS_EXCHANGE_SHIPPED,
-                    ])
+                    ->whereIn('trang_thai', ReturnRequest::OPEN_STATUSES)
                     ->exists()) {
                 return 'Khách hàng có yêu cầu đổi/trả đang xử lý nên không thể xóa. Hãy xử lý yêu cầu hoặc khóa tài khoản.';
             }

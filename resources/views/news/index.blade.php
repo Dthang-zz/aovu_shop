@@ -28,7 +28,7 @@
                 <article class="storefront-card bg-white h-100 overflow-hidden">
                     <a href="{{ route('news.show', $article->slug) }}" class="d-block">
                         @if ($article->featured_image)
-                            <img src="{{ Storage::disk('public')->url($article->featured_image) }}" alt="{{ $article->title }}" class="storefront-image w-100">
+                            <img src="{{ Storage::disk('public')->url($article->featured_image) }}" alt="{{ $article->plainTitle() }}" class="storefront-image w-100">
                         @else
                             <div class="storefront-image bg-light d-flex align-items-center justify-content-center text-muted"><i class="far fa-newspaper fa-3x"></i></div>
                         @endif
@@ -38,9 +38,9 @@
                             <a class="small text-primary font-weight-bold" href="{{ route('news.index', ['category' => $article->category->slug]) }}">{{ $article->category->name }}</a>
                         @endif
                         <div class="small text-muted mt-1">{{ $article->published_at?->format('d/m/Y') }}</div>
-                        <h2 class="h5 mt-2"><a class="text-dark" href="{{ route('news.show', $article->slug) }}">{{ $article->title }}</a></h2>
+                        <h2 class="h5 mt-2"><a class="text-dark" href="{{ route('news.show', $article->slug) }}">{!! $article->titleHtml() !!}</a></h2>
                         @if ($article->excerpt)
-                            <p class="text-muted mb-0">{{ $article->excerpt }}</p>
+                            <p class="text-muted mb-0">{!! $article->excerptHtml() !!}</p>
                         @endif
                     </div>
                 </article>

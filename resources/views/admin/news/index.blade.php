@@ -74,7 +74,7 @@
                                     @if ($article->featured_image)
                                         <img src="{{ Storage::disk('public')->url($article->featured_image) }}" alt="" class="product-thumb mr-2">
                                     @endif
-                                    <div><strong>{{ $article->title }}</strong><div class="small text-muted">{{ $article->excerpt }}</div></div>
+                                    <div><strong>{!! $article->titleHtml() !!}</strong><div class="small text-muted">{!! $article->excerptHtml() !!}</div></div>
                                 </div>
                             </td>
                             <td>{{ $article->category?->name ?? 'Chưa phân loại' }}</td>

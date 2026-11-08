@@ -65,6 +65,31 @@ class CategoryManagementTest extends TestCase
             ->assertSee('Áo sơ mi');
     }
 
+    public function test_category_details_list_only_products_of_that_category(): void
+    {
+        $category = Category::create(['ten_danh_muc' => 'Quần nam', 'trang_thai' => true]);
+        $otherCategory = Category::create(['ten_danh_muc' => 'Váy nữ', 'trang_thai' => true]);
+
+        DB::table('san_phams')->insert([
+            ['ma_san_pham' => 'QN-001', 'ten_san_pham' => 'Quần kaki nam', 'gia_san_pham' => 350000, 'trang_thai' => true, 'danh_muc_id' => $category->id],
+            ['ma_san_pham' => 'QN-002', 'ten_san_pham' => 'Quần jean nam', 'gia_san_pham' => 420000, 'trang_thai' => false, 'danh_muc_id' => $category->id],
+            ['ma_san_pham' => 'VN-001', 'ten_san_pham' => 'Váy hoa nhí', 'gia_san_pham' => 280000, 'trang_thai' => true, 'danh_muc_id' => $otherCategory->id],
+        ]);
+
+        $this->get(route('admin.categories.show', $category))
+            ->assertOk()
+            ->assertSee('Sản phẩm thuộc danh mục')
+            ->assertSee('Quần kaki nam')
+            ->assertSee('Quần jean nam')
+            ->assertSee('350.000 ₫')
+            ->assertSee('Đang ẩn')
+            ->assertDontSee('Váy hoa nhí');
+
+        $this->get(route('admin.categories.show', Category::create(['ten_danh_muc' => 'Phụ kiện', 'trang_thai' => true])))
+            ->assertOk()
+            ->assertSee('Danh mục này chưa có sản phẩm.');
+    }
+
     public function test_deleting_parent_category_keeps_children_without_a_parent(): void
     {
         $parent = Category::create([

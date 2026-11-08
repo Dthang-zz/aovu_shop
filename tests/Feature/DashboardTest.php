@@ -116,9 +116,9 @@ class DashboardTest extends TestCase
             ->assertSeeInOrder([
                 'VẬN HÀNH',
                 'Đơn hàng',
-                'Đổi / trả hàng',
                 'KHÁCH HÀNG & TIỆN ÍCH',
             ])
+            ->assertDontSee('Ví hoàn tiền')
             ->assertSee('Còn 4');
     }
 
@@ -132,17 +132,52 @@ class DashboardTest extends TestCase
             'trang_thai_thanh_toan' => 1,
             'trang_thai' => 3,
         ]);
-        DB::table('support_return_workflows')->insert([
-            ['return_request_id' => 1, 'refund_amount' => 200000, 'refunded_at' => '2026-11-03 09:00:00'],
-            ['return_request_id' => 2, 'refund_amount' => 90000, 'refunded_at' => '2026-10-01 09:00:00'],
+        DB::table('yeu_cau_doi_tras')->insert([
+            ['loai_yeu_cau' => 2, 'trang_thai' => 4, 'so_tien_hoan' => 200000, 'ngay_hoan_tat' => '2026-11-03 09:00:00'],
+            ['loai_yeu_cau' => 2, 'trang_thai' => 4, 'so_tien_hoan' => 90000, 'ngay_hoan_tat' => '2026-10-01 09:00:00'],
+        ]);
+
+        DB::table('don_hangs')->insert([
+            'ma_don_hang' => 'ORD-TODAY-PAID',
+            'ngay_dat' => '2026-11-03 08:00:00',
+            'tong_tien' => 300000,
+            'trang_thai_thanh_toan' => 1,
+            'trang_thai' => 3,
         ]);
 
         $this->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertViewHas('revenueTotal', 800000.0)
+            ->assertViewHas('revenueTotal', 1100000.0)
             ->assertViewHas('refundedTotal', 200000.0)
-            ->assertViewHas('netRevenue', 600000.0)
-            ->assertSee('Doanh thu thuần: <strong class="text-dark">₫ 600.000</strong>', false);
+            ->assertViewHas('netRevenue', 900000.0)
+            ->assertViewHas('todayRevenue', 300000.0)
+            ->assertViewHas('todayNetRevenue', 100000.0)
+            ->assertViewHas('chartValues', fn (array $values): bool => $values[5] === 800000.0
+                && $values[6] === 100000.0
+                && array_sum($values) === 900000.0)
+            ->assertSee('Doanh thu thực')
+            ->assertSee('<h3>₫ 900.000</h3>', false)
+            ->assertSee('Đã hoàn tiền: <span class="text-danger">− ₫ 200.000</span>', false);
+    }
+
+    public function test_dashboard_return_stats_count_completed_and_failed_requests(): void
+    {
+        $this->travelTo('2026-11-03 12:00:00');
+        $baseRequest = ['don_hang_id' => 1, 'tai_khoan_id' => 2, 'ngay_tao' => '2026-11-02 10:00:00'];
+        DB::table('yeu_cau_doi_tras')->insert([
+            [...$baseRequest, 'loai_yeu_cau' => 1, 'trang_thai' => 4],
+            [...$baseRequest, 'loai_yeu_cau' => 2, 'trang_thai' => 4],
+            [...$baseRequest, 'loai_yeu_cau' => 2, 'trang_thai' => 3],
+            [...$baseRequest, 'loai_yeu_cau' => 1, 'trang_thai' => 7],
+            [...$baseRequest, 'loai_yeu_cau' => 2, 'trang_thai' => 3, 'ngay_tao' => '2026-10-01 10:00:00'],
+        ]);
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertViewHas('returnStats', fn (array $stats): bool => $stats['total'] === 4
+                && $stats['completed'] === 2
+                && $stats['failed'] === 1)
+            ->assertSeeInOrder(['Hoàn thành', 'Thất bại']);
     }
 
     public function test_inventory_page_is_no_longer_available(): void

@@ -269,7 +269,7 @@
                                 class="fas fa-shopping-bag mr-2 text-primary"></i>
                             {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.returns.index') }}" class="dropdown-item"><i
+                        <a href="{{ route('admin.orders.index', ['return_status' => 'pending']) }}" class="dropdown-item"><i
                                 class="fas fa-exchange-alt mr-2 text-warning"></i>
                             {{ number_format($pendingReturnCount) }} yêu cầu đổi/trả chờ xử lý</a>
                     </div>
@@ -322,34 +322,12 @@
                                 <p>Sản phẩm</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.variants.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.variants.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-layer-group"></i>
-                                <p>Thuộc tính & biến thể</p>
-                            </a>
-                        </li>
                         <li class="nav-header">VẬN HÀNH</li>
                         <li class="nav-item">
                             <a href="{{ route('admin.orders.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-shopping-bag"></i>
                                 <p>Đơn hàng</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.returns.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-exchange-alt"></i>
-                                <p>Đổi / trả hàng</p>
-                            </a>
-                        </li>
-                        <li class="nav-header">QUẢN LÝ TÀI CHÍNH</li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.finance.refunds.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.finance.refunds.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-wallet"></i>
-                                <p>Ví hoàn tiền</p>
                             </a>
                         </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>

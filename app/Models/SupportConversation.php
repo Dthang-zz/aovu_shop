@@ -33,9 +33,4 @@ class SupportConversation extends Model
     {
         return $this->hasOne(SupportMessage::class)->latestOfMany();
     }
-
-    public function returnWorkflows(): HasMany
-    {
-        return $this->hasMany(ReturnRequestWorkflow::class, 'conversation_id');
-    }
 }

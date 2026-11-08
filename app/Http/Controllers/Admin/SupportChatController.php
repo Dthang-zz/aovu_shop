@@ -4,16 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\ReturnRequest;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class SupportChatController extends Controller
@@ -63,94 +64,7 @@ class SupportChatController extends Controller
                 'status' => $conversation->status,
             ],
             'messages' => $messages->map(fn (SupportMessage $message): array => $this->formatMessage($message)),
-            'return_requests' => $this->returnRequestSummaries($conversation),
-        ]);
-    }
-
-    public function customers(Request $request): JsonResponse
-    {
-        $filters = $request->validate([
-            'q' => ['required', 'string', 'min:2', 'max:100'],
-        ]);
-        $term = trim($filters['q']);
-        $customers = DB::table('tai_khoans')
-            ->where(function ($query) use ($term): void {
-                $query->where('ho_ten', 'like', "%{$term}%")
-                    ->orWhere('email', 'like', "%{$term}%")
-                    ->orWhere('so_dien_thoai', 'like', "%{$term}%");
-            })
-            ->orderBy('ho_ten')
-            ->limit(20)
-            ->get(['id', 'ho_ten', 'email', 'so_dien_thoai']);
-
-        return response()->json(['customers' => $customers]);
-    }
-
-    public function orders(int $customer): JsonResponse
-    {
-        $orders = DB::table('don_hangs')
-            ->where('tai_khoan_id', $customer)
-            ->where('trang_thai', Order::STATUS_COMPLETED)
-            ->latest('ngay_dat')
-            ->limit(50)
-            ->get($this->orderColumns(['id', 'ma_don_hang', 'ngay_dat', 'ten_nguoi_nhan']))
-            ->filter(fn (object $order): bool => ReturnRequest::isWithinReturnWindow($order))
-            ->map(fn (object $order): array => [
-                'id' => $order->id,
-                'ma_don_hang' => $order->ma_don_hang,
-                'ngay_dat' => $order->ngay_dat,
-                'ten_nguoi_nhan' => $order->ten_nguoi_nhan,
-            ])
-            ->values();
-
-        return response()->json(['orders' => $orders]);
-    }
-
-    public function orderItems(Request $request, int $order): JsonResponse
-    {
-        $data = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:tai_khoans,id'],
-        ]);
-        $returnableOrder = DB::table('don_hangs')
-            ->where('id', $order)
-            ->where('tai_khoan_id', $data['customer_id'])
-            ->where('trang_thai', Order::STATUS_COMPLETED)
-            ->first($this->orderColumns(['id', 'ngay_dat']));
-
-        abort_unless($returnableOrder !== null && ReturnRequest::isWithinReturnWindow($returnableOrder), 404);
-
-        $orderItems = DB::table('chi_tiet_don_hangs')
-            ->where('don_hang_id', $order)
-            ->orderBy('id')
-            ->get(['id', 'ten_san_pham', 'don_gia', 'thanh_tien', 'so_luong', 'bien_the_id']);
-        $returnedQuantities = DB::table('yeu_cau_doi_tras')
-            ->whereIn('chi_tiet_don_hang_id', $orderItems->pluck('id'))
-            ->where('trang_thai', '!=', ReturnRequest::STATUS_REJECTED)
-            ->select('chi_tiet_don_hang_id')
-            ->selectRaw('SUM(so_luong) as requested_quantity')
-            ->groupBy('chi_tiet_don_hang_id')
-            ->pluck('requested_quantity', 'chi_tiet_don_hang_id');
-
-        return response()->json([
-            'items' => $orderItems
-                ->map(function ($item) use ($returnedQuantities): array {
-                    $orderedQuantity = (int) ($item->so_luong ?? 0);
-
-                    return [
-                        'id' => $item->id,
-                        'name' => $item->ten_san_pham ?: 'Sản phẩm trong đơn hàng',
-                        'ordered_quantity' => $orderedQuantity,
-                        'available_quantity' => max(
-                            0,
-                            $orderedQuantity - (int) ($returnedQuantities[$item->id] ?? 0),
-                        ),
-                        'unit_price' => (int) ($item->don_gia ?? 0),
-                        'line_total' => (int) ($item->thanh_tien ?? 0),
-                        'variant_id' => $item->bien_the_id,
-                    ];
-                })
-                ->filter(fn (array $item): bool => $item['available_quantity'] > 0)
-                ->values(),
+            'customer_orders' => $this->customerOrders($conversation),
         ]);
     }
 
@@ -208,30 +122,47 @@ class SupportChatController extends Controller
     }
 
     /**
-     * @return Collection<int, array{id: int, type: string, status: string}>
-     */
-    private function returnRequestSummaries(SupportConversation $conversation): Collection
-    {
-        return $conversation->returnWorkflows()
-            ->with('returnRequest')
-            ->get()
-            ->map(fn ($workflow): array => [
-                'id' => $workflow->return_request_id,
-                'type' => $workflow->returnRequest?->typeLabel() ?? 'Đổi / trả hàng',
-                'status' => $workflow->returnRequest?->statusLabel() ?? 'Không xác định',
-            ]);
-    }
-
-    /**
-     * Add the completion date column used by the return window when the legacy table has it.
+     * Latest orders of the customer behind the conversation, matched by the chat email
+     * against their account or the order's recipient email, so staff can open the order to handle returns.
      *
-     * @param  array<int, string>  $columns
-     * @return array<int, string>
+     * @return Collection<int, array{id: int, code: string, ordered_at: ?string, status: string, total: int, url: string}>
      */
-    private function orderColumns(array $columns): array
+    private function customerOrders(SupportConversation $conversation): Collection
     {
-        return Schema::hasColumn('don_hangs', 'ngay_hoan_thanh')
-            ? [...$columns, 'ngay_hoan_thanh']
-            : $columns;
+        $email = Str::lower(trim((string) $conversation->customer_email));
+        if ($email === '' || ! Schema::hasTable('don_hangs')) {
+            return collect();
+        }
+
+        $accountId = Schema::hasTable('tai_khoans') && Schema::hasColumn('tai_khoans', 'email')
+            ? DB::table('tai_khoans')->whereRaw('LOWER(email) = ?', [$email])->value('id')
+            : null;
+        $matchesRecipientEmail = Schema::hasColumn('don_hangs', 'email_nguoi_nhan');
+
+        if ($accountId === null && ! $matchesRecipientEmail) {
+            return collect();
+        }
+
+        return DB::table('don_hangs')
+            ->where(function ($query) use ($accountId, $email, $matchesRecipientEmail): void {
+                if ($accountId !== null) {
+                    $query->where('tai_khoan_id', $accountId);
+                }
+                if ($matchesRecipientEmail) {
+                    $query->orWhereRaw('LOWER(email_nguoi_nhan) = ?', [$email]);
+                }
+            })
+            ->orderByDesc('ngay_dat')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get(['id', 'ma_don_hang', 'ngay_dat', 'trang_thai', 'tong_tien'])
+            ->map(fn (object $order): array => [
+                'id' => (int) $order->id,
+                'code' => (string) $order->ma_don_hang,
+                'ordered_at' => $order->ngay_dat ? Carbon::parse($order->ngay_dat)->format('d/m/Y') : null,
+                'status' => Order::statuses()[$order->trang_thai] ?? 'Không xác định',
+                'total' => (int) $order->tong_tien,
+                'url' => route('admin.orders.show', $order->id),
+            ]);
     }
 }

@@ -88,20 +88,21 @@ class StorefrontCheckoutTest extends TestCase
         });
     }
 
-    public function test_customer_sees_active_promotion_and_prices(): void
+    public function test_customer_sees_the_regular_price_without_per_product_sale(): void
     {
         $product = $this->createProduct('STORE-001');
-        $this->createPromotion($product, 20);
 
-        $this->get(route('shop.products.show', $product))
+        $this->get(route('shop.products.index'))
             ->assertOk()
             ->assertSee('Áo STORE-001')
+            ->assertSee('500.000');
+        $this->get(route('shop.products.show', $product))
+            ->assertOk()
             ->assertSee('500.000')
-            ->assertSee('400.000')
-            ->assertSee('20%');
+            ->assertDontSee('id="original-price"', false);
     }
 
-    public function test_customer_checkout_recalculates_campaign_and_voucher_and_stores_price_snapshots(): void
+    public function test_customer_checkout_applies_cart_discount_code_and_stores_price_snapshots(): void
     {
         $product = $this->createProduct('STORE-002');
         $variant = $product->variants()->create([
@@ -112,7 +113,6 @@ class StorefrontCheckoutTest extends TestCase
             'stock' => 5,
             'status' => ProductVariant::STATUS_ACTIVE,
         ]);
-        $promotionId = $this->createPromotion($product, 20);
         DB::table('vouchers')->insert([
             'ma_voucher' => 'SAVE10',
             'loai_giam' => 1,
@@ -142,24 +142,22 @@ class StorefrontCheckoutTest extends TestCase
         $this->assertDatabaseHas('don_hangs', [
             'id' => $order->id,
             'tien_hang' => 1000000,
-            'tien_giam_khuyen_mai' => 200000,
+            'tien_giam_khuyen_mai' => 0,
             'tien_giam_voucher' => 20000,
-            'tien_giam' => 220000,
-            'tong_tien' => 780000,
+            'tien_giam' => 20000,
+            'tong_tien' => 980000,
         ]);
         $this->assertDatabaseHas('chi_tiet_don_hangs', [
             'don_hang_id' => $order->id,
             'bien_the_id' => null,
             'product_variant_id' => $variant->id,
             'ten_san_pham' => 'Áo STORE-002 (Xanh / M)',
-            'don_gia' => 400000,
+            'don_gia' => 500000,
             'gia_goc' => 500000,
             'so_luong' => 2,
-            'thanh_tien' => 800000,
-            'tien_giam_khuyen_mai' => 200000,
-            'khuyen_mai_id' => $promotionId,
-            'ten_khuyen_mai' => 'Giảm giá STORE-002',
-            'phan_tram_giam' => 20,
+            'thanh_tien' => 1000000,
+            'tien_giam_khuyen_mai' => 0,
+            'khuyen_mai_id' => null,
         ]);
         $this->assertDatabaseHas('vouchers', ['ma_voucher' => 'SAVE10', 'da_su_dung' => 1]);
         $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'stock' => 3]);
@@ -200,23 +198,31 @@ class StorefrontCheckoutTest extends TestCase
         $this->assertDatabaseHas('don_hangs', ['email_nguoi_nhan' => 'new@example.test', 'tai_khoan_id' => $account->id]);
     }
 
-    public function test_product_price_ignores_disabled_upcoming_and_other_product_promotions(): void
+    public function test_fixed_amount_discount_code_is_case_insensitive_and_never_exceeds_the_cart(): void
     {
-        $product = $this->createProduct('STORE-004');
-        $otherProduct = $this->createProduct('STORE-005');
-        $this->createPromotion($product, 30, ['trang_thai' => false]);
-        $this->createPromotion($product, 40, [
-            'ngay_bat_dau' => now()->addDay(),
-            'ngay_ket_thuc' => now()->addDays(2),
+        $product = $this->createProduct('STORE-AMT');
+        $variant = $product->variants()->create(['sku' => 'STORE-AMT-M', 'size' => 'M', 'price' => 50000, 'stock' => 5, 'status' => ProductVariant::STATUS_ACTIVE]);
+        DB::table('vouchers')->insert([
+            'ma_voucher' => 'GIAM80K',
+            'loai_giam' => 2,
+            'gia_tri_giam' => 80000,
+            'so_luong' => null,
+            'da_su_dung' => 0,
+            'ngay_bat_dau' => now()->subDay(),
+            'ngay_ket_thuc' => now()->addDay(),
+            'trang_thai' => true,
         ]);
-        $this->createPromotion($otherProduct, 50);
+        $cart = ['storefront_cart' => [$variant->id => ['product_id' => $product->id, 'variant_id' => $variant->id, 'quantity' => 1]]];
 
-        $this->get(route('shop.products.show', $product))
+        $this->withSession($cart)->get(route('shop.checkout', ['voucher_code' => 'giam80k']))
             ->assertOk()
-            ->assertSee('500.000')
-            ->assertDontSee('30%')
-            ->assertDontSee('40%')
-            ->assertDontSee('50%');
+            ->assertSee('Mã giảm giá GIAM80K');
+
+        $this->withSession($cart)->post(route('shop.checkout.store'), [...$this->checkoutPayload('amount@example.test'), 'voucher_code' => 'giam80k'])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('don_hangs', ['email_nguoi_nhan' => 'amount@example.test', 'tien_hang' => 50000, 'tien_giam_voucher' => 50000, 'tong_tien' => 0]);
+        $this->assertDatabaseHas('vouchers', ['ma_voucher' => 'GIAM80K', 'da_su_dung' => 1]);
     }
 
     public function test_customer_cannot_use_voucher_below_minimum_purchase(): void
@@ -341,25 +347,5 @@ class StorefrontCheckoutTest extends TestCase
             'gia_san_pham' => 500000,
             'trang_thai' => true,
         ]);
-    }
-
-    private function createPromotion(Product $product, int $discount, array $overrides = []): int
-    {
-        $promotionId = DB::table('promotions')->insertGetId([
-            'ten_chuong_trinh' => 'Giảm giá '.$product->ma_san_pham,
-            'phan_tram_giam' => $discount,
-            'ngay_bat_dau' => now()->subDay(),
-            'ngay_ket_thuc' => now()->addDay(),
-            'trang_thai' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-            ...$overrides,
-        ]);
-        DB::table('promotion_products')->insert([
-            'promotion_id' => $promotionId,
-            'product_id' => $product->id,
-        ]);
-
-        return $promotionId;
     }
 }

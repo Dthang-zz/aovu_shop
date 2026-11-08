@@ -9,7 +9,7 @@
     @endif
     <form method="GET" action="{{ route('shop.checkout') }}" class="card storefront-card mb-3">
         <div class="card-body">
-            <label for="voucher_code">Mã voucher</label>
+            <label for="voucher_code">Mã giảm giá</label>
             <div class="input-group">
                 <input id="voucher_code" name="voucher_code" class="form-control" maxlength="50" value="{{ old('voucher_code', $quote['voucher_code']) }}" placeholder="Nhập mã giảm giá">
                 <div class="input-group-append"><button type="submit" class="btn btn-outline-secondary">Áp dụng</button></div>
@@ -60,10 +60,9 @@
                             </div>
                         @endforeach
                         <hr>
-                        <div class="d-flex justify-content-between"><span>Tổng giá gốc</span><span>{{ number_format($quote['gross_total'], 0, ',', '.') }} ₫</span></div>
-                        <div class="d-flex justify-content-between text-danger"><span>Khuyến mãi</span><span>-{{ number_format($quote['promotion_discount'], 0, ',', '.') }} ₫</span></div>
+                        <div class="d-flex justify-content-between"><span>Tạm tính</span><span>{{ number_format($quote['subtotal'], 0, ',', '.') }} ₫</span></div>
                         @if ($quote['voucher'])
-                            <div class="d-flex justify-content-between text-success"><span>Voucher {{ $quote['voucher_code'] }}</span><span>-{{ number_format($quote['voucher_discount'], 0, ',', '.') }} ₫</span></div>
+                            <div class="d-flex justify-content-between text-success"><span>Mã giảm giá {{ $quote['voucher_code'] }}</span><span>-{{ number_format($quote['voucher_discount'], 0, ',', '.') }} ₫</span></div>
                         @endif
                         <div class="d-flex justify-content-between"><span>Phí vận chuyển</span><span>Miễn phí</span></div>
                         <hr>

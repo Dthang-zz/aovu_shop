@@ -48,9 +48,9 @@ $periodLabel = $period === 'custom'
     <div class="col-lg-3 col-6">
         <div class="small-box bg-white">
             <div class="inner">
-                <p class="text-muted mb-1">Doanh thu</p>
-                <h3>₫ {{ number_format($revenueTotal, 0, ',', '.') }}</h3>
-                <span class="text-muted small"><i class="fas fa-check-circle text-success"></i> {{ $periodLabel }} · Hôm nay ₫ {{ number_format($todayRevenue, 0, ',', '.') }}</span>
+                <p class="text-muted mb-1">Doanh thu thực</p>
+                <h3>₫ {{ number_format($netRevenue, 0, ',', '.') }}</h3>
+                <span class="text-muted small"><i class="fas fa-check-circle text-success"></i> {{ $periodLabel }} · Hôm nay ₫ {{ number_format($todayNetRevenue, 0, ',', '.') }}</span>
             </div>
             <div class="icon text-primary"><i class="fas fa-wallet"></i></div>
             <a href="#revenueChart" class="small-box-footer text-primary">Xem biểu đồ <i class="fas fa-arrow-circle-right"></i></a>
@@ -112,19 +112,19 @@ $periodLabel = $period === 'custom'
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
                         <h3 class="card-title"><i class="fas fa-chart-line text-primary mr-2"></i>Doanh thu</h3>
-                        <div class="text-muted small mt-1">Doanh thu đã thanh toán theo ngày/tháng</div>
+                        <div class="text-muted small mt-1">Doanh thu thực theo ngày/tháng (đã trừ tiền hoàn)</div>
                     </div>
                     <span class="badge badge-light">{{ $periodLabel }}</span>
                 </div>
             </div>
             <div class="card-body pt-0">
                 <div class="d-flex align-items-baseline mb-2">
-                    <h2 class="mb-0 mr-2">₫ {{ number_format($revenueTotal, 0, ',', '.') }}</h2>
+                    <h2 class="mb-0 mr-2">₫ {{ number_format($netRevenue, 0, ',', '.') }}</h2>
                     <span class="text-muted small">{{ $periodLabel }}</span>
                 </div>
                 <div class="small text-muted mb-3">
-                    Đã hoàn tiền: <span class="text-danger">₫ {{ number_format($refundedTotal, 0, ',', '.') }}</span>
-                    · Doanh thu thuần: <strong class="text-dark">₫ {{ number_format($netRevenue, 0, ',', '.') }}</strong>
+                    Doanh thu đã thanh toán: <strong class="text-dark">₫ {{ number_format($revenueTotal, 0, ',', '.') }}</strong>
+                    · Đã hoàn tiền: <span class="text-danger">− ₫ {{ number_format($refundedTotal, 0, ',', '.') }}</span>
                 </div>
                 <div class="position-relative" style="height: 280px">
                     <canvas id="revenueChart" aria-label="Biểu đồ doanh thu" role="img"></canvas>
@@ -203,7 +203,7 @@ $periodLabel = $period === 'custom'
             <div class="info-box-content">
                 <span class="info-box-text">Đổi/trả chờ xử lý</span>
                 <span class="info-box-number">{{ number_format($pendingReturns) }} yêu cầu</span>
-                <a href="{{ route('admin.returns.index') }}" class="small">Xem danh sách <i class="fas fa-arrow-right ml-1"></i></a>
+                <a href="{{ route('admin.orders.index', ['return_status' => 'pending']) }}" class="small">Xem đơn có đổi/trả <i class="fas fa-arrow-right ml-1"></i></a>
             </div>
         </div>
     </section>
@@ -265,12 +265,14 @@ $periodLabel = $period === 'custom'
             <div class="card-header border-0"><h3 class="card-title"><i class="fas fa-exchange-alt text-warning mr-2"></i>Thống kê đổi/trả</h3></div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-3"><strong class="d-block">{{ number_format($returnStats['total']) }}</strong><small class="text-muted">Tổng</small></div>
-                    <div class="col-3"><strong class="d-block text-warning">{{ number_format($returnStats['pending']) }}</strong><small class="text-muted">Chờ xử lý</small></div>
-                    <div class="col-3"><strong class="d-block">{{ number_format($returnStats['exchanges']) }}</strong><small class="text-muted">Đổi hàng</small></div>
-                    <div class="col-3"><strong class="d-block">{{ number_format($returnStats['returns']) }}</strong><small class="text-muted">Trả hàng</small></div>
+                    <div class="col-4 col-md-2 mb-2 mb-md-0"><strong class="d-block">{{ number_format($returnStats['total']) }}</strong><small class="text-muted">Tổng</small></div>
+                    <div class="col-4 col-md-2 mb-2 mb-md-0"><strong class="d-block text-warning">{{ number_format($returnStats['pending']) }}</strong><small class="text-muted">Chờ xử lý</small></div>
+                    <div class="col-4 col-md-2 mb-2 mb-md-0"><strong class="d-block">{{ number_format($returnStats['exchanges']) }}</strong><small class="text-muted">Đổi hàng</small></div>
+                    <div class="col-4 col-md-2"><strong class="d-block">{{ number_format($returnStats['returns']) }}</strong><small class="text-muted">Trả hàng</small></div>
+                    <div class="col-4 col-md-2"><strong class="d-block text-success">{{ number_format($returnStats['completed']) }}</strong><small class="text-muted">Hoàn thành</small></div>
+                    <div class="col-4 col-md-2"><strong class="d-block text-danger">{{ number_format($returnStats['failed']) }}</strong><small class="text-muted">Thất bại</small></div>
                 </div>
-                <a href="{{ route('admin.returns.index') }}" class="small d-inline-block mt-3">Quản lý yêu cầu <i class="fas fa-arrow-right ml-1"></i></a>
+                <a href="{{ route('admin.orders.index', ['return_status' => 'pending']) }}" class="small d-inline-block mt-3">Xem đơn có đổi/trả chờ duyệt <i class="fas fa-arrow-right ml-1"></i></a>
             </div>
         </div>
     </section>
@@ -332,7 +334,7 @@ $periodLabel = $period === 'custom'
             data: {
                 labels: @json($chartLabels),
                 datasets: [{
-                    label: 'Doanh thu (triệu đồng)',
+                    label: 'Doanh thu thực (triệu đồng)',
                     data: revenueValues,
                     borderColor: '#5b6cff',
                     backgroundColor: gradient,

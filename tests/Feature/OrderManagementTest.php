@@ -7,6 +7,7 @@ use App\Models\ProductVariant;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -223,48 +224,64 @@ class OrderManagementTest extends TestCase
             ->assertSessionHasErrors('trang_thai');
     }
 
-    public function test_order_detail_page_is_read_only_and_links_to_the_edit_page(): void
+    public function test_order_detail_page_has_status_form_with_only_the_allowed_next_statuses(): void
     {
-        $orderId = $this->createOrder(['ma_don_hang' => 'ORD-READONLY', 'trang_thai' => Order::STATUS_PENDING]);
+        $orderId = $this->createOrder(['ma_don_hang' => 'ORD-STATUS', 'trang_thai' => Order::STATUS_PENDING]);
 
         $this->get(route('admin.orders.show', $orderId))
             ->assertOk()
-            ->assertSee('Chờ xác nhận')
-            ->assertDontSee('name="trang_thai"', false)
-            ->assertDontSee(route('admin.orders.update', $orderId).'"', false)
-            ->assertSee(route('admin.orders.edit', $orderId));
-    }
-
-    public function test_order_edit_page_offers_only_the_allowed_next_statuses(): void
-    {
-        $orderId = $this->createOrder(['ma_don_hang' => 'ORD-EDIT', 'trang_thai' => Order::STATUS_PENDING]);
-
-        $this->get(route('admin.orders.edit', $orderId))
-            ->assertOk()
-            ->assertSee('ORD-EDIT')
-            ->assertSee(route('admin.orders.update', $orderId))
+            ->assertSee('ORD-STATUS')
+            ->assertSee('action="'.route('admin.orders.update', $orderId).'"', false)
             ->assertSee('<option value="'.Order::STATUS_PROCESSING.'"', false)
             ->assertSee('<option value="'.Order::STATUS_CANCELLED.'"', false)
-            ->assertDontSee('<option value="'.Order::STATUS_COMPLETED.'"', false);
+            ->assertDontSee('<option value="'.Order::STATUS_COMPLETED.'"', false)
+            ->assertSee('name="ghi_chu"', false);
     }
 
-    public function test_finished_order_has_no_status_form_on_edit_or_detail_page(): void
+    public function test_finished_order_detail_page_has_no_status_form(): void
     {
         $orderId = $this->createOrder(['trang_thai' => Order::STATUS_COMPLETED]);
 
         $this->get(route('admin.orders.show', $orderId))
             ->assertOk()
-            ->assertDontSee(route('admin.orders.edit', $orderId))
-            ->assertSee('Đơn hàng đã kết thúc, không thể cập nhật thêm.');
-        $this->get(route('admin.orders.edit', $orderId))
-            ->assertOk()
             ->assertDontSee('name="trang_thai"', false)
             ->assertSee('Đơn hàng đã kết thúc, không thể cập nhật thêm.');
     }
 
-    public function test_order_edit_page_returns_not_found_for_missing_order(): void
+    public function test_order_edit_page_no_longer_exists(): void
     {
-        $this->get(route('admin.orders.edit', 999))->assertNotFound();
+        $orderId = $this->createOrder(['trang_thai' => Order::STATUS_PENDING]);
+
+        $this->assertFalse(Route::has('admin.orders.edit'));
+        $this->get('/admin/orders/'.$orderId.'/edit')->assertNotFound();
+        $this->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertDontSee('/admin/orders/'.$orderId.'/edit');
+    }
+
+    public function test_order_list_and_detail_show_both_orderer_and_recipient(): void
+    {
+        $accountId = DB::table('tai_khoans')->insertGetId(['ho_ten' => 'Trần Thị Đặt']);
+        $orderId = $this->createOrder([
+            'ma_don_hang' => 'ORD-GIFT',
+            'tai_khoan_id' => $accountId,
+            'ten_nguoi_nhan' => 'Lê Văn Nhận',
+            'sdt_nguoi_nhan' => '0901234567',
+            'dia_chi_nguoi_nhan' => '12 Lý Thường Kiệt, Hà Nội',
+        ]);
+        $this->createOrder(['ma_don_hang' => 'ORD-GUEST', 'tai_khoan_id' => null, 'ten_nguoi_nhan' => 'Khách lẻ']);
+
+        $this->get(route('admin.orders.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Người đặt', 'Người nhận'])
+            ->assertSee('Trần Thị Đặt')
+            ->assertSee('Lê Văn Nhận')
+            ->assertSee('Khách vãng lai');
+
+        $this->get(route('admin.orders.show', $orderId))
+            ->assertOk()
+            ->assertSeeInOrder(['Người đặt', 'Trần Thị Đặt', 'Người nhận', 'Lê Văn Nhận', '0901234567', '12 Lý Thường Kiệt, Hà Nội'])
+            ->assertSee(route('admin.users.show', $accountId));
     }
 
     public function test_completing_a_cod_order_marks_it_paid_and_records_completion_date(): void

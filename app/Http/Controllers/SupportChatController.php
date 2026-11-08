@@ -32,16 +32,6 @@ class SupportChatController extends Controller
                 'status' => $conversation->status,
             ] : null,
             'messages' => $messages->map(fn (SupportMessage $message): array => $this->formatMessage($message)),
-            'return_requests' => $conversation
-                ? $conversation->returnWorkflows()
-                    ->with('returnRequest')
-                    ->get()
-                    ->map(fn ($workflow): array => [
-                        'id' => $workflow->return_request_id,
-                        'type' => $workflow->returnRequest?->typeLabel() ?? 'Đổi / trả hàng',
-                        'status' => $workflow->returnRequest?->statusLabel() ?? 'Không xác định',
-                    ])
-                : [],
         ]);
     }
 

@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
-use App\Services\PromotionPricingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +23,7 @@ use Throwable;
 
 class ProductController extends Controller
 {
-    public function index(Request $request, PromotionPricingService $pricing): View
+    public function index(Request $request): View
     {
         $query = Product::query()->with('category')->withCount(['images', 'variants']);
 
@@ -54,7 +53,6 @@ class ProductController extends Controller
 
         return view('admin.products.index', [
             'products' => $products,
-            'promotionQuotes' => $pricing->quotes($products->getCollection()),
             'categories' => Category::query()->orderBy('ten_danh_muc')->get(),
             'totalCount' => Product::count(),
             'activeCount' => Product::where('trang_thai', true)->count(),
@@ -74,7 +72,7 @@ class ProductController extends Controller
         ]);
     }
 
-    public function show(Product $product, PromotionPricingService $pricing): View
+    public function show(Product $product): View
     {
         $product->load(['category', 'images', 'variants']);
 
@@ -105,11 +103,43 @@ class ProductController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $reviewSummary = (object) ['total' => 0, 'average_rating' => null];
+        $reviews = null;
+        if (Schema::hasTable('danh_gias')) {
+            $reviewSummary = DB::table('danh_gias')
+                ->where('san_pham_id', $product->getKey())
+                ->selectRaw('COUNT(*) as total, AVG(so_sao) as average_rating')
+                ->first();
+
+            $accountsAvailable = Schema::hasTable('tai_khoans');
+            $reviews = DB::table('danh_gias as reviews')
+                ->when($accountsAvailable, fn ($query) => $query
+                    ->leftJoin('tai_khoans as accounts', 'accounts.id', '=', 'reviews.tai_khoan_id'))
+                ->where('reviews.san_pham_id', $product->getKey())
+                ->select([
+                    'reviews.id',
+                    'reviews.so_sao',
+                    'reviews.noi_dung',
+                    'reviews.ngay_dang',
+                    $accountsAvailable
+                        ? 'accounts.ho_ten as customer_name'
+                        : DB::raw('NULL as customer_name'),
+                    Schema::hasColumn('danh_gias', 'phan_hoi')
+                        ? 'reviews.phan_hoi'
+                        : DB::raw('NULL as phan_hoi'),
+                ])
+                ->orderByDesc('reviews.ngay_dang')
+                ->orderByDesc('reviews.id')
+                ->paginate(10, ['*'], 'reviews_page')
+                ->withQueryString();
+        }
+
         return view('admin.products.show', [
             'product' => $product,
-            'promotionQuote' => $pricing->quotes(collect([$product]))[$product->id],
             'salesSummary' => $salesSummary,
             'orders' => $orders,
+            'reviewSummary' => $reviewSummary,
+            'reviews' => $reviews,
             'variantStatuses' => ProductVariant::statuses(),
         ]);
     }

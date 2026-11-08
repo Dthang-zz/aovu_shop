@@ -54,12 +54,6 @@
         padding: 4px 2px 12px;
     }
 
-    #support-chat-widget .support-chat-returns {
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: #f7f8fb;
-        font-size: .85rem;
-    }
 
     #support-chat-widget .support-chat-message {
         width: fit-content;
@@ -112,7 +106,6 @@
         </div>
         <div class="support-chat-body">
             <div class="support-chat-error" data-chat-error role="status" aria-live="polite"></div>
-            <div class="support-chat-returns mb-2" data-chat-returns hidden aria-live="polite"></div>
             <div class="support-chat-messages" data-chat-messages aria-live="polite"></div>
             <p class="text-muted small mb-2" data-chat-closed hidden>
                 Hội thoại này đã được đóng. Bạn có thể bắt đầu một cuộc trò chuyện mới.
@@ -165,7 +158,6 @@
         var panel = widget.querySelector('.support-chat-panel');
         var launcher = widget.querySelector('.support-chat-launcher');
         var messageList = widget.querySelector('[data-chat-messages]');
-        var returnList = widget.querySelector('[data-chat-returns]');
         var startForm = widget.querySelector('[data-chat-start]');
         var replyForm = widget.querySelector('[data-chat-reply]');
         var error = widget.querySelector('[data-chat-error]');
@@ -205,15 +197,6 @@
             }
 
             (data.messages || []).forEach(appendMessage);
-            returnList.replaceChildren();
-            (data.return_requests || []).forEach(function (ticket) {
-                var summary = document.createElement('div');
-                summary.className = 'mb-1';
-                summary.textContent = '#DT-' + String(ticket.id).padStart(6, '0')
-                    + ' · ' + ticket.type + ' · ' + ticket.status;
-                returnList.appendChild(summary);
-            });
-            returnList.hidden = returnList.childElementCount === 0;
             var isClosed = conversation && conversation.status === 'closed';
             var hasConversation = Boolean(conversation);
             startForm.hidden = hasConversation;

@@ -65,6 +65,16 @@ class DashboardController extends Controller
                 ->whereDate('ngay_dat', $today)
                 ->sum('tong_tien')
             : 0.0;
+        $refundsAvailable = Schema::hasTable('yeu_cau_doi_tras')
+            && Schema::hasColumn('yeu_cau_doi_tras', 'so_tien_hoan')
+            && Schema::hasColumn('yeu_cau_doi_tras', 'ngay_hoan_tat');
+        $refunds = fn (): Builder => DB::table('yeu_cau_doi_tras')
+            ->whereNotNull('so_tien_hoan')
+            ->whereNotNull('ngay_hoan_tat');
+        $todayRefunded = $refundsAvailable
+            ? (float) $refunds()->whereDate('ngay_hoan_tat', $today)->sum('so_tien_hoan')
+            : 0.0;
+        $todayNetRevenue = $todayRevenue - $todayRefunded;
         $ordersToday = $ordersAvailable
             ? DB::table('don_hangs')->whereDate('ngay_dat', $today)->count()
             : 0;
@@ -74,9 +84,9 @@ class DashboardController extends Controller
                 ->where('trang_thai_thanh_toan', Order::PAYMENT_PAID)
                 ->sum('tong_tien')
             : 0.0;
-        $refundedTotal = (float) DB::table('support_return_workflows')
-            ->whereBetween('refunded_at', [$start, $periodEnd])
-            ->sum('refund_amount');
+        $refundedTotal = $refundsAvailable
+            ? (float) $refunds()->whereBetween('ngay_hoan_tat', [$start, $periodEnd])->sum('so_tien_hoan')
+            : 0.0;
         $netRevenue = $revenueTotal - $refundedTotal;
         $ordersInPeriod = $ordersAvailable ? $periodOrders()->count() : 0;
         $pendingOrders = $ordersAvailable
@@ -112,6 +122,20 @@ class DashboardController extends Controller
                 ? Carbon::parse($row->revenue_date)->format('Y-m')
                 : $row->revenue_date;
             $revenueByBucket[$bucket] = ($revenueByBucket[$bucket] ?? 0) + (float) $row->revenue;
+        }
+
+        $refundRows = $refundsAvailable
+            ? $refunds()
+                ->selectRaw('DATE(ngay_hoan_tat) as refund_date, SUM(so_tien_hoan) as refunded')
+                ->whereBetween('ngay_hoan_tat', [$start, $periodEnd])
+                ->groupBy('refund_date')
+                ->get()
+            : collect();
+        foreach ($refundRows as $row) {
+            $bucket = $period === '12m'
+                ? Carbon::parse($row->refund_date)->format('Y-m')
+                : $row->refund_date;
+            $revenueByBucket[$bucket] = ($revenueByBucket[$bucket] ?? 0) - (float) $row->refunded;
         }
 
         $chartLabels = [];
@@ -260,6 +284,8 @@ class DashboardController extends Controller
             'pending' => 0,
             'exchanges' => 0,
             'returns' => 0,
+            'completed' => 0,
+            'failed' => 0,
         ];
         if (Schema::hasTable('yeu_cau_doi_tras')) {
             $returnsQuery = DB::table('yeu_cau_doi_tras')->whereBetween('ngay_tao', [$start, $periodEnd]);
@@ -268,6 +294,10 @@ class DashboardController extends Controller
                 'pending' => (clone $returnsQuery)->where('trang_thai', ReturnRequest::STATUS_PENDING)->count(),
                 'exchanges' => (clone $returnsQuery)->where('loai_yeu_cau', ReturnRequest::TYPE_EXCHANGE)->count(),
                 'returns' => (clone $returnsQuery)->where('loai_yeu_cau', ReturnRequest::TYPE_RETURN)->count(),
+                'completed' => (clone $returnsQuery)
+                    ->where('trang_thai', ReturnRequest::STATUS_COMPLETED)
+                    ->count(),
+                'failed' => (clone $returnsQuery)->where('trang_thai', ReturnRequest::STATUS_REJECTED)->count(),
             ];
         }
         $pendingReturns = Schema::hasTable('yeu_cau_doi_tras')
@@ -281,6 +311,7 @@ class DashboardController extends Controller
             'periodStart' => $start,
             'periodEnd' => $periodEnd,
             'todayRevenue' => $todayRevenue,
+            'todayNetRevenue' => $todayNetRevenue,
             'ordersToday' => $ordersToday,
             'revenueTotal' => $revenueTotal,
             'refundedTotal' => $refundedTotal,

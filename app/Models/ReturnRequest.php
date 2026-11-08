@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -13,29 +11,38 @@ class ReturnRequest extends Model
 {
     public const STATUS_PENDING = 0;
 
-    public const STATUS_PROCESSING = 1;
-
     public const STATUS_APPROVED = 2;
 
     public const STATUS_REJECTED = 3;
 
     public const STATUS_COMPLETED = 4;
 
-    public const STATUS_REFUNDED = 5;
-
-    public const STATUS_AWAITING_RETURN = 6;
-
     public const STATUS_RETURN_RECEIVED = 7;
 
-    public const STATUS_INSPECTED = 8;
-
-    public const STATUS_EXCHANGE_SHIPPED = 9;
+    /**
+     * Statuses of requests that are still being handled (they reserve quantity and block deleting the customer).
+     *
+     * @var array<int, int>
+     */
+    public const OPEN_STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_APPROVED,
+        self::STATUS_RETURN_RECEIVED,
+    ];
 
     public const TYPE_EXCHANGE = 1;
 
     public const TYPE_RETURN = 2;
 
     public const RETURN_WINDOW_DAYS = 7;
+
+    public const ACTION_APPROVE = 'approve';
+
+    public const ACTION_REJECT = 'reject';
+
+    public const ACTION_RECEIVE = 'receive';
+
+    public const ACTION_COMPLETE = 'complete';
 
     protected $table = 'yeu_cau_doi_tras';
 
@@ -52,6 +59,11 @@ class ReturnRequest extends Model
         'phan_hoi',
         'ngay_tao',
         'trang_thai',
+        'so_tien_hoan',
+        'ma_giao_dich_hoan',
+        'bien_the_thay_the_id',
+        'ngay_nhan_hang',
+        'ngay_hoan_tat',
     ];
 
     protected function casts(): array
@@ -64,6 +76,10 @@ class ReturnRequest extends Model
             'so_luong' => 'integer',
             'ngay_tao' => 'datetime',
             'trang_thai' => 'integer',
+            'so_tien_hoan' => 'integer',
+            'bien_the_thay_the_id' => 'integer',
+            'ngay_nhan_hang' => 'datetime',
+            'ngay_hoan_tat' => 'datetime',
         ];
     }
 
@@ -73,16 +89,11 @@ class ReturnRequest extends Model
     public static function statuses(): array
     {
         return [
-            self::STATUS_PENDING => 'Chờ tiếp nhận',
-            self::STATUS_PROCESSING => 'Đang xử lý',
-            self::STATUS_APPROVED => 'Đã chấp nhận',
-            self::STATUS_REJECTED => 'Đã từ chối',
-            self::STATUS_COMPLETED => 'Đã hoàn tất',
-            self::STATUS_REFUNDED => 'Đã ghi nhận hoàn tiền',
-            self::STATUS_AWAITING_RETURN => 'Chờ nhận hàng hoàn',
-            self::STATUS_RETURN_RECEIVED => 'Đã nhận hàng hoàn',
-            self::STATUS_INSPECTED => 'Đã kiểm tra hàng',
-            self::STATUS_EXCHANGE_SHIPPED => 'Đã gửi hàng đổi',
+            self::STATUS_PENDING => 'Chờ duyệt',
+            self::STATUS_APPROVED => 'Đã duyệt',
+            self::STATUS_RETURN_RECEIVED => 'Đã nhận hàng',
+            self::STATUS_COMPLETED => 'Hoàn tất',
+            self::STATUS_REJECTED => 'Từ chối',
         ];
     }
 
@@ -93,15 +104,21 @@ class ReturnRequest extends Model
     {
         return [
             self::STATUS_PENDING => 'warning',
-            self::STATUS_PROCESSING => 'info',
             self::STATUS_APPROVED => 'primary',
-            self::STATUS_REJECTED => 'danger',
-            self::STATUS_COMPLETED => 'success',
-            self::STATUS_REFUNDED => 'success',
-            self::STATUS_AWAITING_RETURN => 'warning',
             self::STATUS_RETURN_RECEIVED => 'info',
-            self::STATUS_INSPECTED => 'primary',
-            self::STATUS_EXCHANGE_SHIPPED => 'info',
+            self::STATUS_COMPLETED => 'success',
+            self::STATUS_REJECTED => 'danger',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function types(): array
+    {
+        return [
+            self::TYPE_EXCHANGE => 'Đổi hàng',
+            self::TYPE_RETURN => 'Trả hàng',
         ];
     }
 
@@ -112,42 +129,20 @@ class ReturnRequest extends Model
 
     public function typeLabel(): string
     {
-        return match ($this->loai_yeu_cau) {
-            self::TYPE_EXCHANGE => 'Đổi hàng',
-            self::TYPE_RETURN => 'Trả hàng',
-            default => 'Yêu cầu khác',
-        };
-    }
-
-    public function workflow(): HasOne
-    {
-        return $this->hasOne(ReturnRequestWorkflow::class, 'return_request_id');
-    }
-
-    public function history(): HasMany
-    {
-        return $this->hasMany(ReturnRequestHistory::class, 'return_request_id')
-            ->orderBy('created_at')
-            ->orderBy('id');
+        return self::types()[$this->loai_yeu_cau] ?? 'Yêu cầu khác';
     }
 
     /**
-     * @return array<int, int>
+     * Actions staff can take on a request in the given status.
+     *
+     * @return array<int, string>
      */
-    public static function allowedStatuses(int $currentStatus, int $requestType, bool $collectionWaived = false): array
+    public static function allowedActions(int $status): array
     {
-        return match ($currentStatus) {
-            self::STATUS_PENDING => [self::STATUS_PROCESSING, self::STATUS_REJECTED],
-            self::STATUS_PROCESSING => [self::STATUS_APPROVED, self::STATUS_REJECTED],
-            self::STATUS_APPROVED => $collectionWaived
-                ? [self::STATUS_AWAITING_RETURN, self::STATUS_INSPECTED]
-                : [self::STATUS_AWAITING_RETURN],
-            self::STATUS_AWAITING_RETURN => [self::STATUS_RETURN_RECEIVED],
-            self::STATUS_RETURN_RECEIVED => [self::STATUS_INSPECTED, self::STATUS_REJECTED],
-            self::STATUS_INSPECTED => $requestType === self::TYPE_RETURN
-                ? []
-                : [self::STATUS_EXCHANGE_SHIPPED],
-            self::STATUS_REFUNDED, self::STATUS_EXCHANGE_SHIPPED => [self::STATUS_COMPLETED],
+        return match ($status) {
+            self::STATUS_PENDING => [self::ACTION_APPROVE, self::ACTION_REJECT],
+            self::STATUS_APPROVED => [self::ACTION_RECEIVE, self::ACTION_REJECT],
+            self::STATUS_RETURN_RECEIVED => [self::ACTION_COMPLETE, self::ACTION_REJECT],
             default => [],
         };
     }
@@ -175,12 +170,19 @@ class ReturnRequest extends Model
         return filled($order->ngay_dat ?? null) ? Carbon::parse($order->ngay_dat) : null;
     }
 
+    /**
+     * Last moment a return/exchange can still be requested for the order.
+     */
+    public static function returnDeadline(object $order): ?Carbon
+    {
+        return self::orderCompletedAt($order)?->copy()->addDays(self::RETURN_WINDOW_DAYS)->endOfDay();
+    }
+
     public static function isWithinReturnWindow(object $order): bool
     {
-        $completedAt = self::orderCompletedAt($order);
+        $deadline = self::returnDeadline($order);
 
-        return $completedAt === null
-            || $completedAt->copy()->addDays(self::RETURN_WINDOW_DAYS)->endOfDay()->gte(now());
+        return $deadline === null || $deadline->gte(now());
     }
 
     /**

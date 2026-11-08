@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\ProductVariant;
+use App\Models\ReturnRequest;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +30,10 @@ class OrderController extends Controller
                     ->orWhere('orders.email_nguoi_nhan', 'like', "%{$term}%")
                     ->orWhere('orders.sdt_nguoi_nhan', 'like', "%{$term}%")
                     ->orWhere('accounts.ho_ten', 'like', "%{$term}%");
+
+                if (Schema::hasColumn('tai_khoans', 'email')) {
+                    $query->orWhere('accounts.email', 'like', "%{$term}%");
+                }
             });
         }
 
@@ -37,6 +43,30 @@ class OrderController extends Controller
 
         if ($request->filled('payment_status') && is_numeric($request->query('payment_status'))) {
             $query->where('orders.trang_thai_thanh_toan', (int) $request->query('payment_status'));
+        }
+
+        $returnsAvailable = Schema::hasTable('yeu_cau_doi_tras');
+        if ($returnsAvailable) {
+            $query->selectSub(
+                DB::table('yeu_cau_doi_tras as returns')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('returns.don_hang_id', 'orders.id'),
+                'return_count',
+            )->selectSub(
+                DB::table('yeu_cau_doi_tras as returns')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('returns.don_hang_id', 'orders.id')
+                    ->where('returns.trang_thai', ReturnRequest::STATUS_PENDING),
+                'pending_return_count',
+            );
+
+            if ($request->query('return_status') === 'pending') {
+                $query->whereExists(fn ($exists) => $exists
+                    ->selectRaw('1')
+                    ->from('yeu_cau_doi_tras as returns')
+                    ->whereColumn('returns.don_hang_id', 'orders.id')
+                    ->where('returns.trang_thai', ReturnRequest::STATUS_PENDING));
+            }
         }
 
         $counts = Order::query()
@@ -60,32 +90,21 @@ class OrderController extends Controller
     public function show(int $order): View
     {
         $order = $this->findOrderForDisplay($order);
+        $items = DB::table('chi_tiet_don_hangs')
+            ->where('don_hang_id', $order->id)
+            ->orderBy('id')
+            ->get();
 
         return view('admin.orders.show', [
             'order' => $order,
-            'items' => DB::table('chi_tiet_don_hangs')
-                ->where('don_hang_id', $order->id)
-                ->orderBy('id')
-                ->get(),
-            'history' => $this->statusHistory($order->id),
-            'statuses' => Order::statuses(),
-            'statusBadges' => Order::statusBadges(),
-            'canEditStatus' => Order::allowedNextStatuses((int) $order->trang_thai) !== [],
-            'promotionDiscountsAvailable' => Schema::hasColumn('don_hangs', 'tien_giam_khuyen_mai')
-                && Schema::hasColumn('don_hangs', 'tien_giam_voucher'),
-        ]);
-    }
-
-    public function edit(int $order): View
-    {
-        $order = $this->findOrderForDisplay($order);
-
-        return view('admin.orders.edit', [
-            'order' => $order,
+            'items' => $items,
             'history' => $this->statusHistory($order->id),
             'statuses' => Order::statuses(),
             'statusBadges' => Order::statusBadges(),
             'allowedStatuses' => Order::allowedNextStatuses((int) $order->trang_thai),
+            'promotionDiscountsAvailable' => Schema::hasColumn('don_hangs', 'tien_giam_khuyen_mai')
+                && Schema::hasColumn('don_hangs', 'tien_giam_voucher'),
+            ...$this->returnDetails($order, $items),
         ]);
     }
 
@@ -144,6 +163,99 @@ class OrderController extends Controller
             ->with('success', 'Đã cập nhật trạng thái đơn hàng.');
     }
 
+    /**
+     * Return/exchange data shown on the order detail page.
+     *
+     * @param  Collection<int, object>  $items
+     * @return array{returnRequests: Collection<int, ReturnRequest>, returnableItems: Collection<int, object>, returnDeadline: ?Carbon, canCreateReturn: bool, replacementVariants: Collection<int, ProductVariant>}
+     */
+    private function returnDetails(object $order, Collection $items): array
+    {
+        $details = [
+            'returnRequests' => collect(),
+            'returnableItems' => collect(),
+            'returnDeadline' => null,
+            'canCreateReturn' => false,
+            'replacementVariants' => collect(),
+        ];
+
+        if (! Schema::hasTable('yeu_cau_doi_tras')) {
+            return $details;
+        }
+
+        $itemsById = $items->keyBy('id');
+        $orderSubtotal = (int) $items->sum(fn (object $item): float => (float) ($item->thanh_tien ?? 0));
+        $voucherDiscount = (int) ($order->tien_giam_voucher ?? 0);
+
+        $returnRequests = ReturnRequest::query()
+            ->where('don_hang_id', $order->id)
+            ->orderByDesc('ngay_tao')
+            ->orderByDesc('id')
+            ->get();
+        $replacementLabels = ProductVariant::query()
+            ->with('product:id,ten_san_pham')
+            ->whereIn('id', $returnRequests->pluck('bien_the_thay_the_id')->filter())
+            ->get()
+            ->mapWithKeys(fn (ProductVariant $variant): array => [$variant->id => $this->variantLabel($variant)]);
+
+        $returnRequests->each(function (ReturnRequest $returnRequest) use ($itemsById, $replacementLabels, $voucherDiscount, $orderSubtotal): void {
+            $item = $itemsById->get($returnRequest->chi_tiet_don_hang_id);
+            $returnRequest->product_name = $item->ten_san_pham ?? 'Sản phẩm';
+            $returnRequest->replacement_label = $replacementLabels->get($returnRequest->bien_the_thay_the_id);
+            $returnRequest->refundable_amount = ReturnRequest::refundableAmount(
+                (int) ($item->don_gia ?? 0),
+                (int) $returnRequest->so_luong,
+                $voucherDiscount,
+                $orderSubtotal,
+            );
+        });
+
+        $requestedQuantities = $returnRequests
+            ->where('trang_thai', '!=', ReturnRequest::STATUS_REJECTED)
+            ->groupBy('chi_tiet_don_hang_id')
+            ->map(fn (Collection $requests): int => (int) $requests->sum('so_luong'));
+        $returnableItems = $items
+            ->map(function (object $item) use ($requestedQuantities): object {
+                $item->available_return_quantity = max(
+                    0,
+                    (int) ($item->so_luong ?? 0) - (int) ($requestedQuantities[$item->id] ?? 0),
+                );
+
+                return $item;
+            })
+            ->filter(fn (object $item): bool => $item->available_return_quantity > 0)
+            ->values();
+
+        $isCompleted = (int) $order->trang_thai === Order::STATUS_COMPLETED;
+        $needsReplacement = $returnRequests->contains(fn (ReturnRequest $returnRequest): bool => (int) $returnRequest->loai_yeu_cau === ReturnRequest::TYPE_EXCHANGE
+            && (int) $returnRequest->trang_thai === ReturnRequest::STATUS_RETURN_RECEIVED);
+
+        return [
+            'returnRequests' => $returnRequests,
+            'returnableItems' => $returnableItems,
+            'returnDeadline' => $isCompleted ? ReturnRequest::returnDeadline($order) : null,
+            'canCreateReturn' => $isCompleted
+                && ReturnRequest::isWithinReturnWindow($order)
+                && $returnableItems->isNotEmpty(),
+            'replacementVariants' => $needsReplacement
+                ? ProductVariant::query()
+                    ->with('product:id,ten_san_pham')
+                    ->where('status', ProductVariant::STATUS_ACTIVE)
+                    ->where('stock', '>', 0)
+                    ->orderBy('product_id')
+                    ->orderBy('sku')
+                    ->get()
+                : collect(),
+        ];
+    }
+
+    private function variantLabel(ProductVariant $variant): string
+    {
+        $options = collect([$variant->color, $variant->size])->filter()->implode(' / ');
+
+        return trim(($variant->product?->ten_san_pham ?: 'Sản phẩm').' · '.$variant->sku.($options !== '' ? ' ('.$options.')' : ''));
+    }
+
     private function findOrderForDisplay(int $orderId): object
     {
         $order = $this->orderQuery()
@@ -199,6 +311,12 @@ class OrderController extends Controller
             ->select([
                 'orders.*',
                 'accounts.ho_ten as account_name',
+                Schema::hasColumn('tai_khoans', 'email')
+                    ? 'accounts.email as account_email'
+                    : DB::raw('NULL as account_email'),
+                Schema::hasColumn('tai_khoans', 'so_dien_thoai')
+                    ? 'accounts.so_dien_thoai as account_phone'
+                    : DB::raw('NULL as account_phone'),
                 'payment_methods.ten_phuong_thuc as payment_method_name',
             ]);
     }

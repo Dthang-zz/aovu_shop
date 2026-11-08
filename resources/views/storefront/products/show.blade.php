@@ -17,12 +17,8 @@
                 <div class="col-md-6">
                     <h1 class="h3 font-weight-bold">{{ $product->ten_san_pham }}</h1>
                     <p class="text-muted">Mã sản phẩm: {{ $product->ma_san_pham }}</p>
-                    @if ($quote['promotion'])
-                        <span class="badge badge-danger mb-2">Giảm {{ rtrim(rtrim(number_format($quote['discount_percent'], 2, ',', '.'), '0'), ',') }}%</span>
-                    @endif
                     <div class="mb-3">
-                        <span id="sale-price" class="h3 {{ $quote['promotion'] ? 'text-danger' : '' }} font-weight-bold">{{ number_format($quote['sale_price'], 0, ',', '.') }} ₫</span>
-                        <span id="original-price" class="price-old ml-2 {{ $quote['promotion'] ? '' : 'd-none' }}">{{ number_format($quote['original_price'], 0, ',', '.') }} ₫</span>
+                        <span id="product-price" class="h3 font-weight-bold">{{ number_format((float) $product->gia_san_pham, 0, ',', '.') }} ₫</span>
                     </div>
                     @if ($product->mo_ta)
                         <p class="text-muted">{{ $product->mo_ta }}</p>
@@ -39,10 +35,10 @@
                                 <select id="variant_id" name="variant_id" class="form-control" required>
                                     <option value="">Chọn màu / kích thước</option>
                                     @foreach ($variants as $variant)
-                                        @php($variantQuote = $variantQuotes[$variant->id])
-                                        <option value="{{ $variant->id }}" data-sale-price="{{ $variantQuote['sale_price'] }}" data-original-price="{{ $variantQuote['original_price'] }}" @selected(old('variant_id') == $variant->id)>
+                                        @php($variantPrice = (int) round((float) ($variant->price ?? $product->gia_san_pham)))
+                                        <option value="{{ $variant->id }}" data-price="{{ $variantPrice }}" @selected(old('variant_id') == $variant->id)>
                                             {{ trim(implode(' / ', array_filter([$variant->color, $variant->size]))) }}
-                                            — {{ number_format($variantQuote['sale_price'], 0, ',', '.') }} ₫
+                                            — {{ number_format($variantPrice, 0, ',', '.') }} ₫
                                             (còn {{ $variant->stock }})
                                         </option>
                                     @endforeach
@@ -110,16 +106,11 @@
     <script>
         document.getElementById('variant_id')?.addEventListener('change', function () {
             const option = this.selectedOptions[0];
-            if (!option || !option.dataset.salePrice) {
+            if (!option || !option.dataset.price) {
                 return;
             }
 
-            const salePrice = document.getElementById('sale-price');
-            const originalPrice = document.getElementById('original-price');
-            salePrice.textContent = Number(option.dataset.salePrice).toLocaleString('vi-VN') + ' ₫';
-            originalPrice.textContent = Number(option.dataset.originalPrice).toLocaleString('vi-VN') + ' ₫';
-            originalPrice.classList.toggle('d-none', option.dataset.salePrice === option.dataset.originalPrice);
-            salePrice.classList.toggle('text-danger', option.dataset.salePrice !== option.dataset.originalPrice);
+            document.getElementById('product-price').textContent = Number(option.dataset.price).toLocaleString('vi-VN') + ' ₫';
         });
     </script>
 @endsection

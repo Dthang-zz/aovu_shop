@@ -247,11 +247,13 @@
         var form = event.target;
         if (!(form instanceof HTMLFormElement) || event.defaultPrevented || form.hasAttribute('data-no-spa')) return;
 
-        var method = (form.method || 'GET').toUpperCase();
+        // Read the attributes directly: form.action / form.method return a child control instead
+        // when the form contains an input named "action" or "method".
+        var method = (form.getAttribute('method') || 'GET').toUpperCase();
         var methodOverride = form.querySelector('input[name="_method"]')?.value.toUpperCase();
         if (!['GET', 'POST'].includes(method) || (methodOverride && !['PUT', 'PATCH', 'DELETE'].includes(methodOverride))) return;
 
-        var action = new URL(form.action || window.location.href, window.location.href);
+        var action = new URL(form.getAttribute('action') || window.location.href, window.location.href);
         if (!isAdminUrl(action.href) || form.target) return;
 
         event.preventDefault();

@@ -19,7 +19,7 @@ AovuShop is a Vietnamese clothing shop (Laravel 13, PHP 8.5, served locally via 
 This is the most important thing to understand before touching data code.
 
 - The local DB is MySQL `aovu_shop`, originally built from the dump `aovu_shop.sql`. The core commerce tables (`don_hangs`, `chi_tiet_don_hangs`, `tai_khoans`, `chuc_vus`, `vouchers`, `bien_thes`, `gio_hangs`, `danh_gias`, `phuong_thuc_thanh_toans`, `dia_chis`, …) exist **only in that dump**. They have no migrations.
-- Migrations cover a subset. Legacy-table migrations (`danh_mucs`, `san_phams`, `yeu_cau_doi_tras`, …) start with `if (Schema::hasTable(...)) return;` so they don't break the existing DB. Newer features (promotions, news, support chat, return workflows, banners) use normal English-named tables.
+- Migrations cover a subset. Legacy-table migrations (`danh_mucs`, `san_phams`, `yeu_cau_doi_tras`, …) start with `if (Schema::hasTable(...)) return;` so they don't break the existing DB. Newer features (promotions, news, support chat, banners) use normal English-named tables. Return/exchange data lives entirely on the legacy `yeu_cau_doi_tras` table (extra columns added by `2026_11_08_155745_simplify_return_requests_into_orders`); the old `support_return_workflows` / `support_return_histories` tables were dropped.
 - Legacy models map to Vietnamese tables with `protected $table = '...'` and usually `public $timestamps = false`. Columns are Vietnamese (`trang_thai`, `ten_san_pham`, `gia_san_pham`, `danh_muc_id`, …). Customers and staff are `App\Models\TaiKhoan` (`tai_khoans`) with role `ChucVu`, **not** `App\Models\User`.
 - Status values are integer constants on the models (`Order::STATUS_*`, `Order::PAYMENT_*`, `ReturnRequest::STATUS_*` / `TYPE_*`). Use those, not magic numbers.
 - Much of the code queries legacy tables with `DB::table('don_hangs')` and guards with `Schema::hasTable` / `Schema::hasColumn` (see `AppServiceProvider`, `CheckoutService`). Keep those guards when you touch such code.
@@ -32,14 +32,45 @@ This is the most important thing to understand before touching data code.
 
 ## Architecture
 
-- **Controllers hold most of the logic.** Validation is inline (`$request->validate`) and queries are written in controllers. The only services are in `app/Services`:
-  - `CheckoutService` builds a quote from the session cart and places orders in a `DB::transaction` with `lockForUpdate` on variants and vouchers.
-  - `PromotionPricingService` applies active `promotions` to product prices. The storefront and checkout both use it.
+- **Controllers hold most of the logic.** Validation is inline (`$request->validate`) and queries are written in controllers. The only service is in `app/Services`:
+  - `CheckoutService` builds a quote from the session cart and places orders in a `DB::transaction` with `lockForUpdate` on variants and vouchers. Products are sold at their regular price (variant price or `gia_san_pham`); the only discount is one cart-level code from the legacy `vouchers` table (`App\Models\Voucher`, `TYPE_PERCENT` = 1 / `TYPE_AMOUNT` = 2), checked for status, dates, usage limit (`so_luong` vs `da_su_dung`) and minimum order (`don_toi_thieu`), with the % discount capped by `giam_toi_da`. `don_hangs.voucher_id` has a foreign key to `vouchers`. There are no per-product automatic promotions any more (the `promotions` / `promotion_products` tables were dropped); old order lines keep their `tien_giam_khuyen_mai` / `ten_khuyen_mai` snapshots.
 - **Storefront cart** is session-based (`Session` key `storefront_cart`). It is not stored in the legacy `gio_hangs` table.
-- **Returns / exchanges**: `ReturnRequest` (`yeu_cau_doi_tras`) has a multi-step status flow. `ReturnRequestWorkflow` and `ReturnRequestHistory` track it. Return requests can be created from the admin returns screen or from a support-chat conversation. Refunds are confirmed manually in `Admin\RefundWalletController` (`/admin/finance/refunds`).
-- **Support chat**: the customer side is `SupportChatController` and the admin side is `Admin\SupportChatController`. They use `support_conversations` and `support_messages` and are polled over HTTP (throttled routes, no websockets).
+- **Orders**: admin can view/edit orders and change status. Each change is logged to the dump-only table `lich_su_trang_thai_don_hangs` (if it exists). Completing an order sets `don_hangs.ngay_hoan_thanh`; cancelling restocks the variants.
+- **Returns / exchanges are handled inside the order** (there is no separate returns module or refund wallet). `ReturnRequest` (`yeu_cau_doi_tras`) is one row per order item with a quantity and a type (`TYPE_EXCHANGE` / `TYPE_RETURN`). `Admin\OrderReturnController` (`admin.orders.returns.store` / `.update`) runs a four-step flow driven by `ReturnRequest::allowedActions()`: pending →(approve) approved →(receive) return received →(complete) completed, with reject allowed from any open step (a reason in `phan_hoi` is required). Requests are only accepted for completed orders within `ReturnRequest::RETURN_WINDOW_DAYS` (7) of completion (`returnDeadline()` / `orderCompletedAt()`), and the quantity can't exceed what was bought minus other non-rejected requests. Completing restocks the original variant (`chi_tiet_don_hangs.product_variant_id`); a return also records `so_tien_hoan` (capped by `ReturnRequest::refundableAmount()`, net of the order voucher) and `ma_giao_dich_hoan`, an exchange picks `bien_the_thay_the_id` and takes its stock. The UI is `resources/views/admin/orders/partials/returns.blade.php` on the order detail page; its forms use the `returns` error bag. Dashboard refunds read `so_tien_hoan` by `ngay_hoan_tat`.
+- **Support chat**: the customer side is `SupportChatController` and the admin side is `Admin\SupportChatController`. They use `support_conversations` and `support_messages` and are polled over HTTP (throttled routes, no websockets). The admin message feed also returns `customer_orders` (matched by the chat email against the account or the recipient email) so staff can jump to the order to handle a return.
 - **Views**: Blade with the AdminLTE 3 (Bootstrap 4 + jQuery) assets served from `public/adminlte`; the `AdminLTE-3.2.0/` folder is the vendor source copy. `layouts/admin.blade.php` and `layouts/storefront.blade.php` are the two layouts. The admin sidebar's counters (pending orders and returns) come from a view composer in `AppServiceProvider`. Admin views follow `resources/views/admin/<module>/{index,create,edit,show}.blade.php`. Tailwind/Vite is installed but the existing pages use AdminLTE/Bootstrap classes.
 - Admin routes are named `admin.<module>.<action>`; storefront routes `shop.*`.
+
+## Feature status
+
+What exists today (snapshot 2026-11-08, branch `Dthang_branch` @ `a223c06`). Test suite: 124 tests, all passing.
+
+**Admin (`/admin/*`)**
+- Dashboard: stats with 7d/period filters or a custom date range (`start_date`/`end_date`).
+- Categories and products (details + image gallery): full CRUD. Variants (`product_variants`: SKU, color, size, price, stock, status) are managed only inside the product create/edit form (`ProductController::syncVariants`); there is no standalone variant screen.
+- Category detail lists the category's products; product detail shows its reviews and completed orders.
+- Orders: list/filter, detail page showing both the orderer (linked `tai_khoans` account, or "Khách vãng lai") and the recipient (`*_nguoi_nhan` columns), status history, restock on cancel. Status is updated from a form on the detail page (`PUT admin.orders.update`); there is no separate edit page. No create/delete.
+- Users (`TaiKhoan`): CRUD, avatar upload, lock/unlock (`toggle-status`).
+- Khuyến mãi (`admin.promotions.*`, `Admin\PromotionController`): CRUD of cart discount codes in the legacy `vouchers` table. Code is stored upper-case and unique; % (whole number 1–100, `gia_tri_giam` is `decimal(12,0)`) with optional cap, or fixed amount; optional minimum order, usage limit, dates, on/off. Detail page lists orders that used the code; a code used by an order can't be deleted (FK), only switched off.
+- Banners: CRUD; active banners appear on `/shop`.
+- Reviews (`danh_gias`): list/filter, view, admin reply (`phan_hoi`). No hide/delete.
+- News articles (draft/published/hidden, preview) and news categories. The article body uses the Summernote editor (assets copied from `AdminLTE-3.2.0/plugins/summernote` into `public/adminlte/plugins/summernote`); editor images are uploaded to `storage/app/public/news/content` via `admin.news.images.store` and inserted as `/storage/...` URLs. Body HTML goes through `App\Services\ArticleHtmlSanitizer` (allow-list) when saved and again when shown via `NewsArticle::contentHtml()`, which also turns legacy plain-text content into paragraphs. Always print the body with `{!! $article->contentHtml() !!}`, never `{!! $article->content !!}`. Title, excerpt, SEO title and SEO description use compact Summernote editors (bold/italic/underline/strike/colour; title and SEO title are single-line) and are stored as inline-only HTML via `ArticleHtmlSanitizer::sanitizeInline()` (columns are `text`; the 255 / 500 limits are checked on the visible text). Print them with `titleHtml()` / `excerptHtml()`; use `plainTitle()`, `metaTitle()` and `metaDescription()` for `<title>`, meta tags, alt texts, and the slug is generated from the plain title.
+- Returns/exchanges and refunds are created and processed on the order detail page (see Architecture); the order list can filter `return_status=pending`.
+- Support chat inbox: reply, open/close conversations, see the customer's latest orders with links to the order page.
+
+**Storefront**
+- `/shop` product list (with banners) and detail page, prices after promotions.
+- Session cart, checkout with a discount code (legacy `vouchers` table, case-insensitive), order confirmation. Products show their regular price only.
+- `/tin-tuc` news list and detail pages.
+- Support chat widget: guest identified by a session token (`support_chat_token`), name/email entered by hand.
+
+**Not built yet**
+- Login / auth for admins and customers; no admin middleware. All `/admin` routes are public.
+- Customer account pages (order history, return requests from the storefront, writing reviews).
+- Admin screens for payment methods and roles (`chuc_vus`); those are edited directly in the DB.
+- Online payment gateway; refunds are manual bank transfers only.
+
+**Branch note**: `main` has commit `d81c56b` ("Add refund workflow and bank account features") that this branch doesn't. It only adds two migrations on the now-dropped `support_return_workflows` table and partial views under `resources/views/admin/returns/partials/`. When merging, delete those partials; the two migrations are dated before `2026_11_08_155745_…` so they still run cleanly on a fresh DB.
 
 <laravel-boost-guidelines>
 === foundation rules ===

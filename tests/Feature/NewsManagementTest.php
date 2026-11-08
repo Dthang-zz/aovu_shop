@@ -105,7 +105,7 @@ class NewsManagementTest extends TestCase
             'id' => $article->id,
             'title' => 'Xu hướng thời trang mùa đông',
             'slug' => 'xu-huong-mua-dong',
-            'content' => 'Nội dung đã được cập nhật.',
+            'content' => '<p>Nội dung đã được cập nhật.</p>',
             'status' => NewsArticle::STATUS_DRAFT,
             'seo_title' => 'SEO mùa đông',
             'seo_description' => 'Mô tả SEO mới.',
@@ -119,15 +119,15 @@ class NewsManagementTest extends TestCase
         $article = $this->createArticle(null, [
             'title' => 'Bản nháp nội bộ',
             'slug' => 'ban-nhap-noi-bo',
-            'content' => '<script>alert("xss")</script>',
+            'content' => '<p>Nội dung nháp</p><script>alert("xss")</script>',
             'status' => NewsArticle::STATUS_DRAFT,
         ]);
 
         $this->get(route('admin.news.preview', $article))
             ->assertOk()
             ->assertSee('Bản xem trước')
-            ->assertSee('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', false)
-            ->assertDontSee('<script>alert("xss")</script>', false);
+            ->assertSee('<p>Nội dung nháp</p>', false)
+            ->assertDontSee('alert("xss")', false);
 
         $this->get(route('news.show', $article->slug))->assertNotFound();
         $this->get(route('news.index'))->assertDontSee($article->title);
@@ -218,6 +218,171 @@ class NewsManagementTest extends TestCase
             ->assertRedirect(route('admin.news-categories.index'))
             ->assertSessionHas('success');
         $this->assertDatabaseMissing('news_categories', ['id' => $category->id]);
+    }
+
+    public function test_article_form_uses_the_rich_text_editor(): void
+    {
+        $article = $this->createArticle(null, ['content' => "Dòng một\nDòng hai\n\nĐoạn mới"]);
+
+        $this->get(route('admin.news.create'))
+            ->assertOk()
+            ->assertSee('summernote-bs4.min.js')
+            ->assertSee('summernote-bs4.min.css')
+            ->assertSee('data-article-editor', false)
+            ->assertSee('data-upload-url="'.route('admin.news.images.store').'"', false);
+        $this->get(route('admin.news.edit', $article))
+            ->assertOk()
+            ->assertSee('&lt;p&gt;Dòng một&lt;br&gt;'."\n".'Dòng hai&lt;/p&gt;&lt;p&gt;Đoạn mới&lt;/p&gt;', false);
+    }
+
+    public function test_editor_html_is_kept_formatted_and_stripped_of_scripts_when_saved_and_shown(): void
+    {
+        $this->post(route('admin.news.store'), [
+            'title' => 'Bài có định dạng',
+            'content' => '<h2 style="text-align: center; position: fixed">Tiêu đề</h2>'
+                .'<p><strong>Đậm</strong> và <a href="https://aovu.vn" target="_blank" onclick="steal()">liên kết</a></p>'
+                .'<p><img src="/storage/news/content/a.jpg" onerror="alert(1)" style="width: 50%"></p>'
+                .'<p><a href="javascript:alert(1)">xấu</a></p><script>alert(2)</script><iframe src="https://evil.test"></iframe>',
+            'status' => NewsArticle::STATUS_PUBLISHED,
+        ])->assertRedirect(route('admin.news.index'));
+
+        $article = NewsArticle::query()->firstOrFail();
+        $this->assertSame(
+            '<h2 style="text-align: center">Tiêu đề</h2>'
+            .'<p><strong>Đậm</strong> và <a href="https://aovu.vn" target="_blank" rel="noopener noreferrer">liên kết</a></p>'
+            .'<p><img src="/storage/news/content/a.jpg" style="width: 50%"></p>'
+            .'<p><a>xấu</a></p>',
+            $article->content,
+        );
+
+        $this->get(route('news.show', $article->slug))
+            ->assertOk()
+            ->assertSee('<strong>Đậm</strong>', false)
+            ->assertSee('<img src="/storage/news/content/a.jpg" style="width: 50%">', false)
+            ->assertDontSee('onerror', false)
+            ->assertDontSee('evil.test', false)
+            ->assertDontSee('javascript:alert', false);
+    }
+
+    public function test_legacy_plain_text_and_stored_unsafe_html_are_rendered_safely(): void
+    {
+        $category = NewsCategory::create(['name' => 'Tin', 'slug' => 'tin', 'is_active' => true]);
+        $plain = $this->createArticle($category, ['slug' => 'bai-cu', 'content' => "Dòng một\nDòng <hai>\n\nĐoạn mới", 'status' => NewsArticle::STATUS_PUBLISHED, 'published_at' => now()]);
+        $unsafe = $this->createArticle($category, ['slug' => 'bai-loi', 'content' => '<p onmouseover="x()">Chữ</p><img src="x" onerror="alert(1)"><svg onload="alert(1)"></svg>', 'status' => NewsArticle::STATUS_PUBLISHED, 'published_at' => now()]);
+
+        $this->get(route('news.show', $plain->slug))
+            ->assertOk()
+            ->assertSee('<p>Dòng một<br>'."\n".'Dòng &lt;hai&gt;</p><p>Đoạn mới</p>', false);
+        $this->get(route('news.show', $unsafe->slug))
+            ->assertOk()
+            ->assertSee('<p>Chữ</p><img src="x">', false)
+            ->assertDontSee('onmouseover', false)
+            ->assertDontSee('onerror', false)
+            ->assertDontSee('<svg', false);
+    }
+
+    public function test_title_excerpt_and_seo_fields_use_compact_editors(): void
+    {
+        $this->get(route('admin.news.create'))
+            ->assertOk()
+            ->assertSee('id="title" name="title" rows="1" class="form-control " data-inline-editor data-single-line data-max-length="255"', false)
+            ->assertSee('id="excerpt" name="excerpt" rows="3" class="form-control " data-inline-editor data-max-length="500"', false)
+            ->assertSee('id="seo_title" name="seo_title" rows="1" class="form-control " data-inline-editor data-single-line', false)
+            ->assertSee('id="seo_description" name="seo_description" rows="3" class="form-control " data-inline-editor', false);
+    }
+
+    public function test_short_fields_keep_inline_formatting_on_the_page_but_meta_tags_and_slug_get_plain_text(): void
+    {
+        $this->post(route('admin.news.store'), [
+            'title' => '<p>Bộ sưu tập <b>Thu</b> <a href="https://evil.test">mới</a><script>x()</script></p>',
+            'excerpt' => '<p><i>Dòng một</i></p><p>Dòng <span style="color: red; position: fixed">hai</span></p><p><img src="/a.png"></p>',
+            'seo_title' => '<p><b>SEO</b> &amp; thời trang</p>',
+            'seo_description' => '<p>Mô tả <u>SEO</u></p><p>dòng 2</p>',
+            'content' => '<p>Nội dung</p>',
+            'status' => NewsArticle::STATUS_PUBLISHED,
+        ])->assertRedirect(route('admin.news.index'));
+
+        $article = NewsArticle::query()->firstOrFail();
+        $this->assertSame('Bộ sưu tập <b>Thu</b> mới', $article->title);
+        $this->assertSame('<i>Dòng một</i><br>Dòng <span style="color: red">hai</span>', $article->excerpt);
+        $this->assertSame('bo-suu-tap-thu-moi', $article->slug);
+
+        $this->get(route('news.show', $article->slug))
+            ->assertOk()
+            ->assertSee('<title>SEO &amp; thời trang | AOVU Shop</title>', false)
+            ->assertSee('<meta name="description" content="Mô tả SEO dòng 2">', false)
+            ->assertSee('<h1 class="mt-2 mb-2">Bộ sưu tập <b>Thu</b> mới</h1>', false)
+            ->assertSee('<p class="lead"><i>Dòng một</i><br>Dòng <span style="color: red">hai</span></p>', false)
+            ->assertDontSee('evil.test', false);
+        $this->get(route('news.index'))
+            ->assertSee('Bộ sưu tập <b>Thu</b> mới</a>', false);
+    }
+
+    public function test_short_field_limits_count_visible_text_and_formatted_blank_title_is_rejected(): void
+    {
+        $this->from(route('admin.news.create'))
+            ->post(route('admin.news.store'), [
+                'title' => '<p><br></p>',
+                'seo_title' => '<b>'.str_repeat('a', 256).'</b>',
+                'excerpt' => '<p>'.str_repeat('b', 249).'</p><p><strong>'.str_repeat('c', 250).'</strong></p>',
+                'content' => '<p>Nội dung</p>',
+                'status' => NewsArticle::STATUS_DRAFT,
+            ])
+            ->assertRedirect(route('admin.news.create'))
+            ->assertSessionHasErrors([
+                'title' => 'Vui lòng nhập tiêu đề bài viết.',
+                'seo_title' => 'Tiêu đề SEO không được vượt quá 255 ký tự (hiện có 256).',
+            ])
+            ->assertSessionDoesntHaveErrors('excerpt');
+
+        $this->assertDatabaseCount('news_articles', 0);
+    }
+
+    public function test_meta_tags_fall_back_to_the_plain_title_and_excerpt(): void
+    {
+        $article = $this->createArticle(null, [
+            'slug' => 'khong-seo',
+            'title' => 'Tiêu đề <b>đậm</b>',
+            'excerpt' => '<i>Mô tả</i> ngắn',
+            'status' => NewsArticle::STATUS_PUBLISHED,
+            'published_at' => now(),
+        ]);
+
+        $this->get(route('news.show', $article->slug))
+            ->assertSee('<title>Tiêu đề đậm | AOVU Shop</title>', false)
+            ->assertSee('<meta name="description" content="Mô tả ngắn">', false);
+    }
+
+    public function test_empty_editor_content_is_rejected(): void
+    {
+        $this->from(route('admin.news.create'))
+            ->post(route('admin.news.store'), [
+                'title' => 'Bài trống',
+                'content' => '<p><br></p><p>&nbsp;</p>',
+                'status' => NewsArticle::STATUS_DRAFT,
+            ])
+            ->assertRedirect(route('admin.news.create'))
+            ->assertSessionHasErrors(['content' => 'Vui lòng nhập nội dung bài viết.']);
+
+        $this->assertDatabaseCount('news_articles', 0);
+    }
+
+    public function test_editor_image_upload_stores_the_image_and_rejects_other_files(): void
+    {
+        Storage::fake('public');
+
+        $response = $this->postJson(route('admin.news.images.store'), [
+            'image' => UploadedFile::fake()->image('ao-thu.png'),
+        ])->assertCreated();
+
+        $url = $response->json('url');
+        $this->assertStringStartsWith('/storage/news/content/', $url);
+        Storage::disk('public')->assertExists(str_replace('/storage/', '', $url));
+
+        $this->postJson(route('admin.news.images.store'), [
+            'image' => UploadedFile::fake()->create('script.php', 10, 'application/x-php'),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['image' => 'Tệp tải lên phải là hình ảnh.']);
     }
 
     public function test_article_validation_rejects_missing_fields_and_duplicate_slug(): void

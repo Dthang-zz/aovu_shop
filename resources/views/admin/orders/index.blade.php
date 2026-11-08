@@ -49,6 +49,10 @@
                         <option value="0" @selected(request('payment_status') === '0')>Chưa thanh toán</option>
                         <option value="1" @selected(request('payment_status') === '1')>Đã thanh toán</option>
                     </select>
+                    <select name="return_status" class="form-control form-control-sm mr-2 mb-1" style="max-width: 190px" aria-label="Lọc đổi/trả" onchange="this.form.requestSubmit()">
+                        <option value="">Mọi đổi/trả</option>
+                        <option value="pending" @selected(request('return_status') === 'pending')>Có đổi/trả chờ duyệt</option>
+                    </select>
                     <a href="{{ route('admin.orders.index') }}" class="btn btn-default btn-sm mb-1" title="Xóa bộ lọc"><i class="fas fa-undo"></i></a>
                 </form>
             </div>
@@ -57,25 +61,35 @@
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th class="pl-3">Mã đơn</th><th>Khách hàng</th><th>Ngày đặt</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th class="text-right pr-3">Thao tác</th></tr></thead>
+                <thead><tr><th class="pl-3">Mã đơn</th><th>Người đặt</th><th>Người nhận</th><th>Ngày đặt</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th class="text-right pr-3">Thao tác</th></tr></thead>
                 <tbody>
                     @forelse ($orders as $order)
                         <tr>
-                            <td class="pl-3"><a href="{{ route('admin.orders.show', $order->id) }}" class="font-weight-bold">{{ $order->ma_don_hang }}</a><div class="small text-muted">#{{ $order->id }}</div></td>
-                            <td><div class="font-weight-bold text-dark">{{ $order->ten_nguoi_nhan ?: ($order->account_name ?: 'Khách hàng') }}</div><small class="text-muted">{{ $order->sdt_nguoi_nhan ?: $order->email_nguoi_nhan ?: '' }}</small></td>
+                            <td class="pl-3"><a href="{{ route('admin.orders.show', $order->id) }}" class="font-weight-bold">{{ $order->ma_don_hang }}</a><div class="small text-muted">#{{ $order->id }}</div>
+                                @if (($order->pending_return_count ?? 0) > 0)
+                                    <a href="{{ route('admin.orders.show', $order->id) }}#returns" class="badge badge-warning">Đổi/trả chờ duyệt</a>
+                                @elseif (($order->return_count ?? 0) > 0)
+                                    <span class="badge badge-light border">Có đổi/trả</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if ($order->tai_khoan_id && $order->account_name !== null)
+                                    <div class="font-weight-bold text-dark">{{ $order->account_name ?: 'Khách hàng' }}</div><small class="text-muted">{{ $order->account_phone ?: $order->account_email ?: '' }}</small>
+                                @else
+                                    <div class="text-muted">Khách vãng lai</div>
+                                @endif
+                            </td>
+                            <td><div class="font-weight-bold text-dark">{{ $order->ten_nguoi_nhan ?: '—' }}</div><small class="text-muted">{{ $order->sdt_nguoi_nhan ?: $order->email_nguoi_nhan ?: '' }}</small></td>
                             <td>{{ $order->ngay_dat ? \Illuminate\Support\Carbon::parse($order->ngay_dat)->format('d/m/Y H:i') : '—' }}</td>
                             <td class="font-weight-bold">{{ number_format((float) $order->tong_tien, 0, ',', '.') }} ₫</td>
                             <td>{{ \App\Models\Order::paymentStatusLabel($order->trang_thai_thanh_toan === null ? null : (int) $order->trang_thai_thanh_toan) }}</td>
                             <td><span class="badge badge-{{ $statusBadges[$order->trang_thai] ?? 'secondary' }} px-2 py-1">{{ $statuses[$order->trang_thai] ?? 'Không xác định' }}</span></td>
                             <td class="text-right pr-3 text-nowrap">
                                 <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-default btn-sm text-primary"><i class="far fa-eye"></i> Xem</a>
-                                @if (\App\Models\Order::allowedNextStatuses((int) $order->trang_thai) !== [])
-                                    <a href="{{ route('admin.orders.edit', $order->id) }}" class="btn btn-default btn-sm text-warning"><i class="fas fa-edit"></i> Sửa</a>
-                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center py-5"><i class="fas fa-inbox fa-2x text-muted mb-2"></i><div class="text-muted">Không tìm thấy đơn hàng phù hợp.</div></td></tr>
+                        <tr><td colspan="8" class="text-center py-5"><i class="fas fa-inbox fa-2x text-muted mb-2"></i><div class="text-muted">Không tìm thấy đơn hàng phù hợp.</div></td></tr>
                     @endforelse
                 </tbody>
             </table>

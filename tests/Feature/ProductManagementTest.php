@@ -358,7 +358,7 @@ class ProductManagementTest extends TestCase
             ->assertDontSee('ORD-PENDING');
     }
 
-    public function test_active_campaign_price_is_shown_in_product_list_and_detail(): void
+    public function test_product_detail_shows_reviews_of_that_product(): void
     {
         Schema::create('bien_thes', function (Blueprint $table) {
             $table->increments('id');
@@ -378,36 +378,42 @@ class ProductManagementTest extends TestCase
             $table->unsignedInteger('so_luong')->nullable();
             $table->decimal('thanh_tien', 12, 0)->nullable();
         });
+        Schema::create('tai_khoans', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('ho_ten')->nullable();
+        });
+        Schema::create('danh_gias', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('san_pham_id')->nullable();
+            $table->unsignedInteger('tai_khoan_id')->nullable();
+            $table->unsignedTinyInteger('so_sao')->nullable();
+            $table->text('noi_dung')->nullable();
+            $table->dateTime('ngay_dang')->nullable();
+            $table->text('phan_hoi')->nullable();
+        });
 
-        $product = Product::create([
-            'ma_san_pham' => 'PROMOTION-PRICE-001',
-            'ten_san_pham' => 'Sản phẩm khuyến mãi',
-            'gia_san_pham' => 500000,
-            'trang_thai' => true,
+        $product = Product::create(['ma_san_pham' => 'REV-001', 'ten_san_pham' => 'Áo được đánh giá', 'gia_san_pham' => 100000, 'trang_thai' => true]);
+        $otherProduct = Product::create(['ma_san_pham' => 'REV-002', 'ten_san_pham' => 'Áo khác', 'gia_san_pham' => 100000, 'trang_thai' => true]);
+        $customerId = DB::table('tai_khoans')->insertGetId(['ho_ten' => 'Nguyễn Văn An']);
+        DB::table('danh_gias')->insert([
+            ['san_pham_id' => $product->id, 'tai_khoan_id' => $customerId, 'so_sao' => 5, 'noi_dung' => 'Vải mát, mặc rất thích', 'ngay_dang' => '2026-11-01 10:00:00', 'phan_hoi' => 'Cảm ơn bạn đã ủng hộ'],
+            ['san_pham_id' => $product->id, 'tai_khoan_id' => $customerId, 'so_sao' => 4, 'noi_dung' => 'Giao hơi chậm', 'ngay_dang' => '2026-11-02 10:00:00', 'phan_hoi' => null],
+            ['san_pham_id' => $otherProduct->id, 'tai_khoan_id' => $customerId, 'so_sao' => 1, 'noi_dung' => 'Bình luận sản phẩm khác', 'ngay_dang' => '2026-11-02 10:00:00', 'phan_hoi' => null],
         ]);
-        $promotionId = DB::table('promotions')->insertGetId([
-            'ten_chuong_trinh' => 'Summer Sale',
-            'phan_tram_giam' => 20,
-            'ngay_bat_dau' => now()->subHour(),
-            'ngay_ket_thuc' => now()->addHour(),
-            'trang_thai' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        DB::table('promotion_products')->insert([
-            'promotion_id' => $promotionId,
-            'product_id' => $product->id,
-        ]);
-
-        $this->get(route('admin.products.index'))
-            ->assertOk()
-            ->assertSee('400.000 ₫')
-            ->assertSee('Summer Sale');
 
         $this->get(route('admin.products.show', $product))
             ->assertOk()
-            ->assertSee('400.000 ₫')
-            ->assertSee('Summer Sale');
+            ->assertSee('Đánh giá &amp; bình luận', false)
+            ->assertSee('4,5/5')
+            ->assertSee('2 đánh giá')
+            ->assertSeeInOrder(['Giao hơi chậm', 'Chưa phản hồi', 'Vải mát, mặc rất thích', 'Cảm ơn bạn đã ủng hộ'])
+            ->assertSee('Nguyễn Văn An')
+            ->assertDontSee('Bình luận sản phẩm khác');
+
+        $this->get(route('admin.products.show', $otherProduct))
+            ->assertOk()
+            ->assertSee('1 đánh giá')
+            ->assertDontSee('Vải mát, mặc rất thích');
     }
 
     public function test_product_form_rejects_variant_sku_already_used_by_another_product(): void

@@ -6,7 +6,6 @@ use App\Models\Banner;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\CheckoutService;
-use App\Services\PromotionPricingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,22 +15,19 @@ use Illuminate\Support\Facades\Session;
 
 class StorefrontController extends Controller
 {
-    public function index(PromotionPricingService $pricing): View
+    public function index(): View
     {
-        $products = Product::query()
-            ->where('trang_thai', true)
-            ->orderByDesc('noi_bat')
-            ->orderByDesc('id')
-            ->get();
-
         return view('storefront.products.index', [
             'banners' => Banner::query()->active()->ordered()->get(),
-            'products' => $products,
-            'quotes' => $pricing->quotes($products),
+            'products' => Product::query()
+                ->where('trang_thai', true)
+                ->orderByDesc('noi_bat')
+                ->orderByDesc('id')
+                ->get(),
         ]);
     }
 
-    public function show(Product $product, PromotionPricingService $pricing): View
+    public function show(Product $product): View
     {
         abort_unless($product->trang_thai, 404);
         $variants = $product->variants()
@@ -39,14 +35,6 @@ class StorefrontController extends Controller
             ->orderBy('color')
             ->orderBy('size')
             ->get();
-        $promotion = $pricing->promotionsFor(collect([$product]))[$product->id] ?? null;
-        $variantQuotes = [];
-        foreach ($variants as $variant) {
-            $variantQuotes[$variant->id] = $pricing->price(
-                (int) round((float) ($variant->price ?? $product->gia_san_pham)),
-                $promotion,
-            );
-        }
 
         $reviews = collect();
         $reviewSummary = (object) ['total' => 0, 'average_rating' => null];
@@ -77,8 +65,6 @@ class StorefrontController extends Controller
         return view('storefront.products.show', [
             'product' => $product,
             'variants' => $variants,
-            'quote' => $pricing->price((int) $product->gia_san_pham, $promotion),
-            'variantQuotes' => $variantQuotes,
             'reviews' => $reviews,
             'reviewSummary' => $reviewSummary,
         ]);

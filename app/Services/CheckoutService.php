@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\TaiKhoan;
+use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -14,13 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
-    public const VOUCHER_PERCENTAGE = 1;
-
-    public function __construct(private PromotionPricingService $promotionPricing) {}
-
     /**
      * @param  array<string, array{product_id: mixed, variant_id: mixed, quantity: mixed}>  $cart
-     * @return array{lines: array<int, array<string, mixed>>, gross_total: int, promotion_discount: int, subtotal: int, voucher_discount: int, total_discount: int, total: int, voucher: object|null, voucher_code: string|null}
+     * @return array{lines: array<int, array<string, mixed>>, subtotal: int, voucher_discount: int, total: int, voucher: object|null, voucher_code: string|null}
      */
     public function quote(array $cart, ?string $voucherCode = null, bool $lockRows = false): array
     {
@@ -99,57 +96,40 @@ class CheckoutService
             $variantPrices[] = (int) round((float) ($variant->price ?? $product->gia_san_pham));
         }
 
-        $promotions = $this->promotionPricing->promotionsFor($products->values());
         $lines = [];
-        $grossTotal = 0;
-        $promotionDiscount = 0;
+        $subtotal = 0;
         foreach ($cartItems as $index => $item) {
             $product = $products->get($item['product_id']);
             $variant = $item['variant_id'] === null ? null : $variants[$item['variant_id']];
-            $price = $this->promotionPricing->price(
-                $variantPrices[$index],
-                $promotions[$product->id] ?? null,
-            );
-            $lineGross = $price['original_price'] * $item['quantity'];
-            $lineDiscount = $price['discount_amount'] * $item['quantity'];
-            $lineSubtotal = $price['sale_price'] * $item['quantity'];
-            $promotion = $price['promotion'];
+            $unitPrice = max(0, $variantPrices[$index]);
+            $lineTotal = $unitPrice * $item['quantity'];
 
-            $grossTotal += $lineGross;
-            $promotionDiscount += $lineDiscount;
+            $subtotal += $lineTotal;
             $lines[] = [
                 'product' => $product,
                 'variant' => $variant,
                 'quantity' => $item['quantity'],
-                'original_price' => $price['original_price'],
-                'unit_price' => $price['sale_price'],
-                'line_gross' => $lineGross,
-                'promotion_discount' => $lineDiscount,
-                'line_total' => $lineSubtotal,
-                'promotion' => $promotion,
+                'unit_price' => $unitPrice,
+                'line_total' => $lineTotal,
                 'variant_label' => $variant
                     ? trim(implode(' / ', array_filter([$variant->color, $variant->size])))
                     : null,
             ];
         }
 
-        if ($grossTotal > 999_999_999_999) {
+        if ($subtotal > 999_999_999_999) {
             throw ValidationException::withMessages([
                 'cart' => 'Tổng giá trị giỏ hàng vượt quá giới hạn cho phép.',
             ]);
         }
 
-        $subtotal = $grossTotal - $promotionDiscount;
         $voucher = $this->findValidVoucher($voucherCode, $subtotal, $lockRows);
         $voucherDiscount = $this->voucherDiscount($voucher, $subtotal);
 
         return [
             'lines' => $lines,
-            'gross_total' => $grossTotal,
-            'promotion_discount' => $promotionDiscount,
             'subtotal' => $subtotal,
             'voucher_discount' => $voucherDiscount,
-            'total_discount' => $promotionDiscount + $voucherDiscount,
             'total' => max(0, $subtotal - $voucherDiscount),
             'voucher' => $voucher,
             'voucher_code' => $voucher ? $voucher->ma_voucher : null,
@@ -175,17 +155,17 @@ class CheckoutService
                 'dia_chi_nguoi_nhan' => $customer['dia_chi_nguoi_nhan'],
                 'ghi_chu' => $customer['ghi_chu'] ?? null,
                 'ngay_dat' => now(),
-                'tien_hang' => $quote['gross_total'],
+                'tien_hang' => $quote['subtotal'],
                 'phi_van_chuyen' => 0,
                 'voucher_id' => $quote['voucher']?->id,
-                'tien_giam' => $quote['total_discount'],
+                'tien_giam' => $quote['voucher_discount'],
                 'tong_tien' => $quote['total'],
                 'trang_thai_thanh_toan' => Order::PAYMENT_UNPAID,
                 'trang_thai' => Order::STATUS_PENDING,
             ];
 
             if (Schema::hasColumn('don_hangs', 'tien_giam_khuyen_mai')) {
-                $orderData['tien_giam_khuyen_mai'] = $quote['promotion_discount'];
+                $orderData['tien_giam_khuyen_mai'] = 0;
             }
             if (Schema::hasColumn('don_hangs', 'tien_giam_voucher')) {
                 $orderData['tien_giam_voucher'] = $quote['voucher_discount'];
@@ -212,11 +192,8 @@ class CheckoutService
                     'don_gia' => $line['unit_price'],
                     'so_luong' => $line['quantity'],
                     'thanh_tien' => $line['line_total'],
-                    'gia_goc' => $line['original_price'],
-                    'tien_giam_khuyen_mai' => $line['promotion_discount'],
-                    'khuyen_mai_id' => $line['promotion']?->id,
-                    'ten_khuyen_mai' => $line['promotion']?->ten_chuong_trinh,
-                    'phan_tram_giam' => $line['promotion']?->phan_tram_giam,
+                    'gia_goc' => $line['unit_price'],
+                    'tien_giam_khuyen_mai' => 0,
                 ];
                 $availableItemData = array_filter(
                     $itemData,
@@ -309,7 +286,7 @@ class CheckoutService
             return 0;
         }
 
-        $discount = (int) $voucher->loai_giam === self::VOUCHER_PERCENTAGE
+        $discount = (int) $voucher->loai_giam === Voucher::TYPE_PERCENT
             ? (int) round($subtotal * (float) $voucher->gia_tri_giam / 100)
             : (int) $voucher->gia_tri_giam;
 

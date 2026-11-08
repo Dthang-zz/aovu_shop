@@ -24,9 +24,28 @@
             </div>
             <div class="card-body">
                 <div class="row mb-3">
-                    <div class="col-sm-6 mb-3"><div class="text-muted small">Người nhận</div><div class="font-weight-bold">{{ $order->ten_nguoi_nhan ?: ($order->account_name ?: 'Khách hàng') }}</div><div class="text-muted small">{{ $order->sdt_nguoi_nhan ?: '—' }} · {{ $order->email_nguoi_nhan ?: '—' }}</div></div>
+                    <div class="col-sm-6 mb-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small text-uppercase mb-1"><i class="fas fa-user mr-1"></i>Người đặt</div>
+                            @if ($order->tai_khoan_id && $order->account_name !== null)
+                                <div class="font-weight-bold">{{ $order->account_name ?: 'Khách hàng' }}</div>
+                                <div class="text-muted small">{{ $order->account_phone ?: '—' }} · {{ $order->account_email ?: '—' }}</div>
+                                <div class="small mt-1"><a href="{{ route('admin.users.show', $order->tai_khoan_id) }}">Xem tài khoản #{{ $order->tai_khoan_id }}</a></div>
+                            @else
+                                <div class="font-weight-bold">Khách vãng lai</div>
+                                <div class="text-muted small">Đơn không gắn với tài khoản nào.</div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small text-uppercase mb-1"><i class="fas fa-shipping-fast mr-1"></i>Người nhận</div>
+                            <div class="font-weight-bold">{{ $order->ten_nguoi_nhan ?: '—' }}</div>
+                            <div class="text-muted small">{{ $order->sdt_nguoi_nhan ?: '—' }} · {{ $order->email_nguoi_nhan ?: '—' }}</div>
+                            <div class="small mt-1">{{ $order->dia_chi_nguoi_nhan ?: 'Chưa có địa chỉ' }}</div>
+                        </div>
+                    </div>
                     <div class="col-sm-6 mb-3"><div class="text-muted small">Ngày đặt hàng</div><div class="font-weight-bold">{{ $order->ngay_dat ? \Illuminate\Support\Carbon::parse($order->ngay_dat)->format('d/m/Y H:i') : '—' }}</div></div>
-                    <div class="col-sm-6 mb-3"><div class="text-muted small">Địa chỉ giao hàng</div><div class="font-weight-bold">{{ $order->dia_chi_nguoi_nhan ?: 'Chưa có địa chỉ' }}</div></div>
                     <div class="col-sm-6 mb-3"><div class="text-muted small">Thanh toán</div><div class="font-weight-bold">{{ $order->payment_status_label }}</div><div class="text-muted small">{{ $order->payment_method_name ?: 'Chưa chọn phương thức' }}</div></div>
                     @if ($order->ghi_chu)
                         <div class="col-12 mb-3"><div class="text-muted small">Ghi chú của khách</div><div>{{ $order->ghi_chu }}</div></div>
@@ -43,7 +62,7 @@
                                     <td>
                                         {{ $item->ten_san_pham ?: 'Sản phẩm' }}
                                         @if ($item->ten_khuyen_mai)
-                                            <div class="small text-danger">{{ $item->ten_khuyen_mai }} ({{ number_format((float) $item->phan_tram_giam, 2) }}%)</div>
+                                            <div class="small text-danger">{{ $item->ten_khuyen_mai }} ({{ $item->phan_tram_giam !== null ? rtrim(rtrim(number_format((float) $item->phan_tram_giam, 2, ',', '.'), '0'), ',').'%' : '-'.number_format((float) ($item->tien_giam_khuyen_mai ?? 0) / max(1, (int) $item->so_luong), 0, ',', '.').' ₫/sp' }})</div>
                                         @endif
                                     </td>
                                     <td class="text-right">
@@ -78,6 +97,8 @@
             <div class="card-footer bg-white"><a href="{{ route('admin.orders.index') }}" class="btn btn-default"><i class="fas fa-arrow-left mr-1"></i>Quay lại danh sách</a></div>
         </div>
 
+        @include('admin.orders.partials.returns')
+
         @include('admin.orders.partials.history')
     </div>
 
@@ -94,13 +115,37 @@
                     <span class="font-weight-bold">{{ $order->payment_status_label }}</span>
                 </div>
             </div>
-            <div class="card-footer bg-white">
-                @if ($canEditStatus)
-                    <a href="{{ route('admin.orders.edit', $order->id) }}" class="btn btn-primary btn-block"><i class="fas fa-edit mr-1"></i>Chỉnh sửa trạng thái</a>
-                @else
+            @if ($errors->any())
+                <div class="card-body pt-0 pb-0"><div class="alert alert-danger" role="alert"><ul class="mb-0 pl-3">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
+            @endif
+            @if ($allowedStatuses)
+                <form method="POST" action="{{ route('admin.orders.update', $order->id) }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="card-body border-top">
+                        <div class="form-group">
+                            <label for="trang_thai">Cập nhật trạng thái</label>
+                            <select name="trang_thai" id="trang_thai" class="form-control @error('trang_thai') is-invalid @enderror" required>
+                                @foreach ($allowedStatuses as $status)
+                                    <option value="{{ $status }}" @selected((string) old('trang_thai') === (string) $status)>{{ $statuses[$status] }}</option>
+                                @endforeach
+                            </select>
+                            @error('trang_thai')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <small class="form-text text-muted">Chuyển sang Hoàn thành sẽ ghi nhận đã thanh toán; Hủy đơn sẽ hoàn lại tồn kho.</small>
+                        </div>
+                        <div class="form-group mb-0">
+                            <label for="ghi_chu">Ghi chú xử lý</label>
+                            <textarea name="ghi_chu" id="ghi_chu" rows="3" maxlength="255" class="form-control @error('ghi_chu') is-invalid @enderror" placeholder="Ghi chú tùy chọn...">{{ old('ghi_chu') }}</textarea>
+                            @error('ghi_chu')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white"><button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save mr-1"></i>Lưu trạng thái</button></div>
+                </form>
+            @else
+                <div class="card-footer bg-white">
                     <div class="text-muted small"><i class="fas fa-check-circle text-success mr-1"></i>Đơn hàng đã kết thúc, không thể cập nhật thêm.</div>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

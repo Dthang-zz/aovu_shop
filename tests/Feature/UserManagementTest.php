@@ -305,7 +305,7 @@ class UserManagementTest extends TestCase
 
     public function test_customer_with_an_open_return_request_cannot_be_deleted(): void
     {
-        foreach ([0, 1, 2] as $status) {
+        foreach ([0, 2, 7] as $status) {
             $user = $this->createUser();
             DB::table('yeu_cau_doi_tras')->insert([
                 'tai_khoan_id' => $user->id,

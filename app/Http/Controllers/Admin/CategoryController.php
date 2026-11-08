@@ -69,8 +69,15 @@ class CategoryController extends Controller
             ->loadCount('products')
             ->load(['children' => fn ($query) => $query->withCount('products')]);
 
+        $products = $category->products()
+            ->select(['id', 'ma_san_pham', 'ten_san_pham', 'hinh_anh', 'gia_san_pham', 'trang_thai'])
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'products_page')
+            ->withQueryString();
+
         return view('admin.categories.show', [
             'category' => $category,
+            'products' => $products,
         ]);
     }
 

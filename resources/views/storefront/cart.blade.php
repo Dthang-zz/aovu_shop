@@ -14,7 +14,6 @@
                             <td class="pl-3">
                                 <strong>{{ $line['product']->ten_san_pham }}</strong>
                                 @if ($line['variant_label'])<div class="small text-muted">{{ $line['variant_label'] }}</div>@endif
-                                @if ($line['promotion'])<div class="small text-danger">-{{ number_format($line['promotion_discount'], 0, ',', '.') }} ₫ · {{ $line['promotion']->ten_chuong_trinh }}</div>@endif
                             </td>
                             <td>{{ number_format($line['unit_price'], 0, ',', '.') }} ₫</td>
                             <td>
@@ -41,8 +40,8 @@
         <div class="card-footer bg-white d-flex justify-content-between align-items-center">
             <a href="{{ route('shop.products.index') }}" class="btn btn-default">Tiếp tục mua sắm</a>
             <div class="text-right">
-                @if ($quote['promotion_discount'] > 0)<div>Khuyến mãi: <span class="text-danger">-{{ number_format($quote['promotion_discount'], 0, ',', '.') }} ₫</span></div>@endif
-                <div class="h5 mb-2">Tạm tính: <strong>{{ number_format($quote['subtotal'], 0, ',', '.') }} ₫</strong></div>
+                <div class="h5 mb-1">Tạm tính: <strong>{{ number_format($quote['subtotal'], 0, ',', '.') }} ₫</strong></div>
+                <div class="small text-muted mb-2">Có mã giảm giá? Nhập ở bước đặt hàng.</div>
                 <a href="{{ route('shop.checkout') }}" class="btn btn-primary">Tiến hành đặt hàng</a>
             </div>
         </div>

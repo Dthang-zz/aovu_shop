@@ -42,14 +42,7 @@
                             <dt class="col-sm-4">Giá bán</dt>
                             <dd class="col-sm-8">{{ number_format($product->gia_san_pham, 0, ',', '.') }} ₫</dd>
                             <dt class="col-sm-4">Giá khuyến mãi</dt>
-                            <dd class="col-sm-8">
-                                @if ($promotionQuote['promotion'])
-                                    <span class="font-weight-bold text-danger">{{ number_format($promotionQuote['sale_price'], 0, ',', '.') }} ₫</span>
-                                    <small class="d-block text-muted">{{ $promotionQuote['promotion']->ten_chuong_trinh }}</small>
-                                @else
-                                    {{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : 'Không áp dụng' }}
-                                @endif
-                            </dd>
+                            <dd class="col-sm-8">{{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : 'Không áp dụng' }}</dd>
                             <dt class="col-sm-4">Trạng thái</dt>
                             <dd class="col-sm-8">
                                 @if ($product->trang_thai)
@@ -120,6 +113,57 @@
                 </div>
                 @if ($orders->hasPages())
                     <div class="card-footer">{{ $orders->links() }}</div>
+                @endif
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h3 class="card-title"><i class="fas fa-star text-warning mr-2"></i>Đánh giá &amp; bình luận</h3>
+                    <div class="card-tools ml-auto small text-muted">
+                        @if ($reviewSummary->total > 0)
+                            <span class="text-warning font-weight-bold">{{ number_format((float) $reviewSummary->average_rating, 1, ',', '.') }}/5</span>
+                            · {{ number_format($reviewSummary->total) }} đánh giá
+                        @else
+                            Chưa có đánh giá
+                        @endif
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if ($reviews && $reviews->isNotEmpty())
+                        <ul class="list-group list-group-flush">
+                            @foreach ($reviews as $review)
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap">
+                                        <div>
+                                            <strong>{{ $review->customer_name ?: 'Khách hàng' }}</strong>
+                                            <span class="text-warning ml-2" aria-label="{{ (int) $review->so_sao }} trên 5 sao">
+                                                @for ($star = 1; $star <= 5; $star++)
+                                                    <i class="{{ $star <= (int) $review->so_sao ? 'fas' : 'far' }} fa-star"></i>
+                                                @endfor
+                                            </span>
+                                        </div>
+                                        <div class="small text-muted">
+                                            {{ $review->ngay_dang ? \Illuminate\Support\Carbon::parse($review->ngay_dang)->format('d/m/Y H:i') : '—' }}
+                                            <a href="{{ route('admin.reviews.show', $review->id) }}" class="ml-2" aria-label="Xem đánh giá #{{ $review->id }}">Chi tiết</a>
+                                        </div>
+                                    </div>
+                                    <p class="mb-1 mt-2 text-break">{{ $review->noi_dung ?: 'Không có nội dung bình luận.' }}</p>
+                                    @if (filled($review->phan_hoi))
+                                        <div class="bg-light rounded p-2 small text-break">
+                                            <i class="fas fa-reply text-primary mr-1"></i><strong>Phản hồi của shop:</strong> {{ $review->phan_hoi }}
+                                        </div>
+                                    @else
+                                        <span class="badge badge-warning">Chưa phản hồi</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <div class="text-center text-muted py-4">Sản phẩm này chưa có đánh giá nào.</div>
+                    @endif
+                </div>
+                @if ($reviews && $reviews->hasPages())
+                    <div class="card-footer">{{ $reviews->links() }}</div>
                 @endif
             </div>
         </div>

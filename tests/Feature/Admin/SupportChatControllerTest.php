@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Order;
 use App\Models\SupportConversation;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class SupportChatControllerTest extends TestCase
@@ -51,6 +55,42 @@ class SupportChatControllerTest extends TestCase
             'id' => $conversation->id,
             'status' => SupportConversation::STATUS_CLOSED,
         ]);
+    }
+
+    public function test_conversation_lists_the_customers_orders_with_links_to_the_order_page(): void
+    {
+        Schema::create('tai_khoans', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('email')->nullable();
+        });
+        Schema::create('don_hangs', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('ma_don_hang');
+            $table->unsignedInteger('tai_khoan_id')->nullable();
+            $table->string('email_nguoi_nhan')->nullable();
+            $table->dateTime('ngay_dat')->nullable();
+            $table->decimal('tong_tien', 12, 0)->nullable();
+            $table->unsignedTinyInteger('trang_thai')->nullable();
+        });
+        $accountId = DB::table('tai_khoans')->insertGetId(['email' => 'minhanh@example.test']);
+        $accountOrderId = DB::table('don_hangs')->insertGetId([
+            'ma_don_hang' => 'ORD-ACCOUNT', 'tai_khoan_id' => $accountId, 'ngay_dat' => '2026-11-05 10:00:00',
+            'tong_tien' => 350000, 'trang_thai' => Order::STATUS_COMPLETED,
+        ]);
+        DB::table('don_hangs')->insert([
+            ['ma_don_hang' => 'ORD-GUEST-EMAIL', 'tai_khoan_id' => null, 'email_nguoi_nhan' => 'MinhAnh@Example.test', 'ngay_dat' => '2026-11-01 10:00:00', 'tong_tien' => 100000, 'trang_thai' => Order::STATUS_PENDING],
+            ['ma_don_hang' => 'ORD-OTHER', 'tai_khoan_id' => 99, 'email_nguoi_nhan' => 'other@example.test', 'ngay_dat' => '2026-11-06 10:00:00', 'tong_tien' => 100000, 'trang_thai' => Order::STATUS_PENDING],
+        ]);
+        $conversation = SupportConversation::factory()->create(['customer_email' => 'minhanh@example.test']);
+
+        $this->getJson(route('admin.support-chat.messages', $conversation))
+            ->assertOk()
+            ->assertJsonCount(2, 'customer_orders')
+            ->assertJsonPath('customer_orders.0.code', 'ORD-ACCOUNT')
+            ->assertJsonPath('customer_orders.0.status', 'Hoàn thành')
+            ->assertJsonPath('customer_orders.0.url', route('admin.orders.show', $accountOrderId))
+            ->assertJsonPath('customer_orders.1.code', 'ORD-GUEST-EMAIL')
+            ->assertJsonMissingPath('return_requests');
     }
 
     public function test_staff_cannot_reply_to_a_closed_conversation(): void

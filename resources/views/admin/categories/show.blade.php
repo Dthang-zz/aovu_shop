@@ -59,6 +59,62 @@
 
 <div class="card">
     <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-box-open text-primary mr-2"></i>Sản phẩm thuộc danh mục</h3>
+    </div>
+    <div class="card-body p-0">
+        @if ($products->isNotEmpty())
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="pl-3">Sản phẩm</th>
+                        <th>Mã sản phẩm</th>
+                        <th>Giá bán</th>
+                        <th>Trạng thái</th>
+                        <th class="text-right pr-3">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($products as $product)
+                    <tr>
+                        <td class="pl-3">
+                            <div class="d-flex align-items-center">
+                                @if ($product->hinh_anh)
+                                <img src="{{ Storage::disk('public')->url($product->hinh_anh) }}" alt="{{ $product->ten_san_pham }}" class="rounded mr-2" style="width: 40px; height: 40px; object-fit: cover">
+                                @else
+                                <span class="bg-light rounded d-inline-flex align-items-center justify-content-center text-muted mr-2" style="width: 40px; height: 40px"><i class="far fa-image"></i></span>
+                                @endif
+                                <span>{{ $product->ten_san_pham ?: 'Chưa đặt tên' }}</span>
+                            </div>
+                        </td>
+                        <td><code>{{ $product->ma_san_pham }}</code></td>
+                        <td>{{ $product->gia_san_pham !== null ? number_format((float) $product->gia_san_pham, 0, ',', '.').' ₫' : '—' }}</td>
+                        <td>
+                            @if ($product->trang_thai)
+                            <span class="badge badge-success">Đang kinh doanh</span>
+                            @else
+                            <span class="badge badge-secondary">Đang ẩn</span>
+                            @endif
+                        </td>
+                        <td class="text-right pr-3">
+                            <a href="{{ route('admin.products.show', $product) }}" class="btn btn-default btn-sm text-info" aria-label="Xem chi tiết {{ $product->ten_san_pham }}"><i class="far fa-eye"></i></a>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @else
+        <div class="text-center text-muted py-4">Danh mục này chưa có sản phẩm.</div>
+        @endif
+    </div>
+    @if ($products->hasPages())
+    <div class="card-footer bg-white">{{ $products->links() }}</div>
+    @endif
+</div>
+
+<div class="card">
+    <div class="card-header">
         <h3 class="card-title"><i class="fas fa-sitemap text-primary mr-2"></i>Danh mục con</h3>
     </div>
     <div class="card-body p-0">
