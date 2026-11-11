@@ -7,9 +7,10 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\OrderTrackingController;
+use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', DashboardController::class);
+Route::get('/', [StorefrontController::class, 'index'])->name('storefront.index');
 Route::get('/admin', DashboardController::class)->name('admin.dashboard');
 
 Route::get('/tra-cuu-don-hang', [OrderTrackingController::class, 'show'])
