@@ -2,7 +2,7 @@
 
 @section('title', 'Chi tiết yêu cầu đổi / trả')
 @section('page-heading', 'Chi tiết yêu cầu')
-@section('page-subheading', 'Xem thông tin yêu cầu và cập nhật kết quả xử lý.')
+@section('page-subheading', 'Xem thông tin yêu cầu và tiến độ xử lý.')
 @section('breadcrumb')
     <a href="{{ route('admin.returns.index') }}">Đổi / trả hàng</a>
 @endsection
@@ -44,6 +44,16 @@
                     </div>
                 </div>
 
+                @if ($returnRequest->conversation_id)
+                    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center">
+                        <span><i class="fas fa-comments mr-1"></i>Phiếu được tạo từ cuộc trò chuyện CSKH.</span>
+                        <a class="btn btn-sm btn-outline-primary"
+                            href="{{ route('admin.support-chat.index', ['conversation_id' => $returnRequest->conversation_id]) }}">
+                            Mở hội thoại
+                        </a>
+                    </div>
+                @endif
+
                 <h6 class="font-weight-bold border-top pt-3">Sản phẩm yêu cầu</h6>
                 <div class="d-flex justify-content-between align-items-center bg-light rounded p-3 mb-3">
                     <div>
@@ -75,63 +85,107 @@
                     <h6 class="font-weight-bold border-top pt-3">Phản hồi gần nhất</h6>
                     <p class="text-muted mb-0">{{ $returnRequest->phan_hoi }}</p>
                 @endif
+
+                @if ($returnRequest->workflow)
+                    <h6 class="font-weight-bold border-top pt-3">Thông tin xử lý</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Khách đã đồng ý</dt>
+                        <dd class="col-sm-7">{{ $returnRequest->workflow->customer_agreed ? 'Đã xác nhận' : 'Chưa xác nhận' }}</dd>
+                        <dt class="col-sm-5">Đã kiểm tra chính sách</dt>
+                        <dd class="col-sm-7">{{ $returnRequest->workflow->policy_reviewed ? 'Đã kiểm tra' : 'Chưa kiểm tra' }}</dd>
+                        @if ($returnRequest->workflow->policy_notes)
+                            <dt class="col-sm-5">Ghi chú chính sách</dt>
+                            <dd class="col-sm-7">{{ $returnRequest->workflow->policy_notes }}</dd>
+                        @endif
+                        <dt class="col-sm-5">Thu hồi sản phẩm</dt>
+                        <dd class="col-sm-7">{{ $returnRequest->workflow->collection_waived ? 'Được miễn' : 'Cần thu hồi' }}</dd>
+                        @if ($returnRequest->workflow->received_at)
+                            <dt class="col-sm-5">Đã nhận hàng</dt>
+                            <dd class="col-sm-7">{{ $returnRequest->workflow->received_at->format('d/m/Y H:i') }}</dd>
+                        @endif
+                        @if ($returnRequest->workflow->inspection_notes)
+                            <dt class="col-sm-5">Kết quả kiểm tra</dt>
+                            <dd class="col-sm-7">{{ $returnRequest->workflow->inspection_notes }}</dd>
+                        @endif
+                        @if ($returnRequest->workflow->replacement_name)
+                            <dt class="col-sm-5">Sản phẩm thay thế</dt>
+                            <dd class="col-sm-7">
+                                {{ $returnRequest->workflow->replacement_name }}
+                                ({{ number_format($returnRequest->workflow->replacement_price, 0, ',', '.') }} ₫)
+                            </dd>
+                            <dt class="col-sm-5">Chênh lệch giá</dt>
+                            <dd class="col-sm-7">
+                                {{ number_format($returnRequest->workflow->price_difference, 0, ',', '.') }} ₫
+                                · {{ $returnRequest->workflow->price_difference_settled ? 'Đã xử lý' : 'Chưa xử lý' }}
+                            </dd>
+                        @endif
+                        @if ($returnRequest->workflow->tracking_code)
+                            <dt class="col-sm-5">Mã vận đơn đổi</dt>
+                            <dd class="col-sm-7">{{ $returnRequest->workflow->tracking_code }}</dd>
+                        @endif
+                        @if ($returnRequest->workflow->delivered_at)
+                            <dt class="col-sm-5">Khách nhận hàng đổi</dt>
+                            <dd class="col-sm-7">{{ $returnRequest->workflow->delivered_at->format('d/m/Y H:i') }}</dd>
+                        @endif
+                        @if ($returnRequest->workflow->refund_amount !== null)
+                            <dt class="col-sm-5">Số tiền đã hoàn</dt>
+                            <dd class="col-sm-7">{{ number_format($returnRequest->workflow->refund_amount, 0, ',', '.') }} ₫</dd>
+                            <dt class="col-sm-5">Phương thức / mã giao dịch</dt>
+                            <dd class="col-sm-7">
+                                {{ [
+                                    'bank_transfer' => 'Chuyển khoản',
+                                    'cash' => 'Tiền mặt',
+                                    'original_payment' => 'Phương thức thanh toán ban đầu',
+                                    'other' => 'Khác',
+                                ][$returnRequest->workflow->refund_method] ?? '—' }}
+                                · {{ $returnRequest->workflow->refund_reference ?: 'Không có mã tham chiếu' }}
+                            </dd>
+                            @if ($returnRequest->workflow->refunded_at)
+                                <dt class="col-sm-5">Thời điểm xác nhận hoàn</dt>
+                                <dd class="col-sm-7">{{ $returnRequest->workflow->refunded_at->format('d/m/Y H:i') }}</dd>
+                            @endif
+                        @endif
+                    </dl>
+                @endif
             </div>
             <div class="card-footer bg-white">
                 <a href="{{ route('admin.returns.index') }}" class="btn btn-default"><i class="fas fa-arrow-left mr-1"></i>Quay lại danh sách</a>
             </div>
         </div>
+
+        @include('admin.returns.partials.history')
     </div>
 
     <div class="col-lg-4">
         <div class="card">
-            <div class="card-header"><h3 class="card-title"><i class="fas fa-tasks text-primary mr-2"></i>Cập nhật xử lý</h3></div>
-            @if ($errors->any())
-                <div class="card-body pb-0">
-                    <div class="alert alert-danger" role="alert">
-                        <ul class="mb-0 pl-3">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-tasks text-primary mr-2"></i>Trạng thái xử lý</h3></div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">Trạng thái</span>
+                    <span class="badge badge-{{ $returnRequest->status_badge }} px-2 py-1">{{ $returnRequest->status_label }}</span>
                 </div>
-            @endif
-            @if ($returnRequest->allowed_statuses)
-                <form method="POST" action="{{ route('admin.returns.update', $returnRequest->id) }}">
-                    @csrf
-                    @method('PUT')
-                    <div class="card-body">
-                        <div class="form-group">
-                            <label for="trang_thai">Trạng thái tiếp theo</label>
-                            <select name="trang_thai" id="trang_thai" class="form-control @error('trang_thai') is-invalid @enderror" required>
-                                @foreach ($returnRequest->allowed_statuses as $status)
-                                    <option value="{{ $status }}" @selected((string) old('trang_thai') === (string) $status)>{{ \App\Models\ReturnRequest::statuses()[$status] }}</option>
-                                @endforeach
-                            </select>
-                            @error('trang_thai')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group mb-0">
-                            <label for="phan_hoi">Phản hồi cho khách hàng</label>
-                            <textarea name="phan_hoi" id="phan_hoi" rows="5" maxlength="5000" class="form-control @error('phan_hoi') is-invalid @enderror" placeholder="Ghi chú quá trình xử lý hoặc thông tin hoàn tiền...">{{ old('phan_hoi', $returnRequest->phan_hoi) }}</textarea>
-                            @error('phan_hoi')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <small class="form-text text-muted">Bắt buộc khi từ chối yêu cầu hoặc ghi nhận hoàn tiền.</small>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white">
-                        <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save mr-1"></i>Lưu cập nhật</button>
-                    </div>
-                </form>
-            @else
-                <div class="card-body">
-                    <div class="alert alert-light border mb-0">
-                        <i class="fas fa-check-circle text-success mr-1"></i>Yêu cầu đã kết thúc, không thể chuyển trạng thái thêm.
-                    </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Loại yêu cầu</span>
+                    <span class="font-weight-bold">{{ $returnRequest->type_label }}</span>
                 </div>
-            @endif
+            </div>
+            <div class="card-footer bg-white">
+                @if ($returnRequest->allowed_statuses)
+                    <a href="{{ route('admin.returns.edit', $returnRequest->id) }}" class="btn btn-primary btn-block"><i class="fas fa-edit mr-1"></i>Chỉnh sửa / xử lý phiếu</a>
+                @else
+                    <div class="small">@include('admin.returns.partials.closed-notice')</div>
+                @endif
+            </div>
         </div>
         <div class="callout callout-info">
             <h5><i class="fas fa-info-circle mr-1"></i>Hoàn tiền</h5>
-            <p class="mb-0 small">Ghi nhận trạng thái hoàn tiền chỉ cập nhật hồ sơ yêu cầu. Việc chuyển tiền thực tế cần thực hiện trên cổng thanh toán hoặc theo quy trình kế toán của cửa hàng.</p>
+            <p class="mb-0 small">
+                Phiếu trả hàng xuất hiện trong mục chờ chuyển khoản của
+                <a href="{{ route('admin.finance.refunds.index') }}">Ví hoàn tiền</a>
+                sau khi đạt trạng thái <strong>Đã kiểm tra hàng</strong>.
+                Thứ tự xử lý: Đang xử lý → Đã chấp nhận → Chờ nhận hàng hoàn → Đã nhận hàng hoàn → Đã kiểm tra hàng
+                (nếu miễn thu hồi hàng thì có thể chuyển thẳng từ Đã chấp nhận sang Đã kiểm tra hàng).
+            </p>
         </div>
     </div>
 </div>

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\ProductVariant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -57,32 +59,30 @@ class OrderController extends Controller
 
     public function show(int $order): View
     {
-        $order = $this->orderQuery()
-            ->where('orders.id', $order)
-            ->firstOrFail();
-        $order->status_label = Order::statuses()[$order->trang_thai] ?? 'Không xác định';
-        $order->status_badge = Order::statusBadges()[$order->trang_thai] ?? 'secondary';
-        $order->payment_status_label = Order::paymentStatusLabel(
-            $order->trang_thai_thanh_toan === null ? null : (int) $order->trang_thai_thanh_toan
-        );
-
-        $items = DB::table('chi_tiet_don_hangs')
-            ->where('don_hang_id', $order->id)
-            ->orderBy('id')
-            ->get();
-
-        $history = Schema::hasTable('lich_su_trang_thai_don_hangs')
-            ? DB::table('lich_su_trang_thai_don_hangs')
-                ->where('don_hang_id', $order->id)
-                ->orderByDesc('ngay_cap_nhat')
-                ->orderByDesc('id')
-                ->get()
-            : collect();
+        $order = $this->findOrderForDisplay($order);
 
         return view('admin.orders.show', [
             'order' => $order,
-            'items' => $items,
-            'history' => $history,
+            'items' => DB::table('chi_tiet_don_hangs')
+                ->where('don_hang_id', $order->id)
+                ->orderBy('id')
+                ->get(),
+            'history' => $this->statusHistory($order->id),
+            'statuses' => Order::statuses(),
+            'statusBadges' => Order::statusBadges(),
+            'canEditStatus' => Order::allowedNextStatuses((int) $order->trang_thai) !== [],
+            'promotionDiscountsAvailable' => Schema::hasColumn('don_hangs', 'tien_giam_khuyen_mai')
+                && Schema::hasColumn('don_hangs', 'tien_giam_voucher'),
+        ]);
+    }
+
+    public function edit(int $order): View
+    {
+        $order = $this->findOrderForDisplay($order);
+
+        return view('admin.orders.edit', [
+            'order' => $order,
+            'history' => $this->statusHistory($order->id),
             'statuses' => Order::statuses(),
             'statusBadges' => Order::statusBadges(),
             'allowedStatuses' => Order::allowedNextStatuses((int) $order->trang_thai),
@@ -110,7 +110,23 @@ class OrderController extends Controller
                 ]);
             }
 
-            $record->update(['trang_thai' => $targetStatus]);
+            $changes = ['trang_thai' => $targetStatus];
+
+            if ($targetStatus === Order::STATUS_COMPLETED) {
+                if (Schema::hasColumn('don_hangs', 'ngay_hoan_thanh')) {
+                    $changes['ngay_hoan_thanh'] = now();
+                }
+
+                if ((int) $record->trang_thai_thanh_toan !== Order::PAYMENT_PAID) {
+                    $changes['trang_thai_thanh_toan'] = Order::PAYMENT_PAID;
+                }
+            }
+
+            if ($targetStatus === Order::STATUS_CANCELLED) {
+                $this->restockCancelledOrder($record->getKey());
+            }
+
+            $record->update($changes);
 
             if (Schema::hasTable('lich_su_trang_thai_don_hangs')) {
                 DB::table('lich_su_trang_thai_don_hangs')->insert([
@@ -126,6 +142,48 @@ class OrderController extends Controller
         return redirect()
             ->route('admin.orders.show', $order)
             ->with('success', 'Đã cập nhật trạng thái đơn hàng.');
+    }
+
+    private function findOrderForDisplay(int $orderId): object
+    {
+        $order = $this->orderQuery()
+            ->where('orders.id', $orderId)
+            ->firstOrFail();
+        $order->status_label = Order::statuses()[$order->trang_thai] ?? 'Không xác định';
+        $order->status_badge = Order::statusBadges()[$order->trang_thai] ?? 'secondary';
+        $order->payment_status_label = Order::paymentStatusLabel(
+            $order->trang_thai_thanh_toan === null ? null : (int) $order->trang_thai_thanh_toan
+        );
+
+        return $order;
+    }
+
+    private function statusHistory(int $orderId): Collection
+    {
+        return Schema::hasTable('lich_su_trang_thai_don_hangs')
+            ? DB::table('lich_su_trang_thai_don_hangs')
+                ->where('don_hang_id', $orderId)
+                ->orderByDesc('ngay_cap_nhat')
+                ->orderByDesc('id')
+                ->get()
+            : collect();
+    }
+
+    private function restockCancelledOrder(int $orderId): void
+    {
+        if (! Schema::hasColumn('chi_tiet_don_hangs', 'product_variant_id')) {
+            return;
+        }
+
+        DB::table('chi_tiet_don_hangs')
+            ->where('don_hang_id', $orderId)
+            ->whereNotNull('product_variant_id')
+            ->get(['product_variant_id', 'so_luong'])
+            ->each(function (object $item): void {
+                ProductVariant::query()
+                    ->whereKey($item->product_variant_id)
+                    ->increment('stock', (int) $item->so_luong);
+            });
     }
 
     private function orderQuery()

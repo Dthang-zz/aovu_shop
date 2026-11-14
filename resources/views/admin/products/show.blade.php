@@ -42,7 +42,14 @@
                             <dt class="col-sm-4">Giá bán</dt>
                             <dd class="col-sm-8">{{ number_format($product->gia_san_pham, 0, ',', '.') }} ₫</dd>
                             <dt class="col-sm-4">Giá khuyến mãi</dt>
-                            <dd class="col-sm-8">{{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : 'Không áp dụng' }}</dd>
+                            <dd class="col-sm-8">
+                                @if ($promotionQuote['promotion'])
+                                    <span class="font-weight-bold text-danger">{{ number_format($promotionQuote['sale_price'], 0, ',', '.') }} ₫</span>
+                                    <small class="d-block text-muted">{{ $promotionQuote['promotion']->ten_chuong_trinh }}</small>
+                                @else
+                                    {{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : 'Không áp dụng' }}
+                                @endif
+                            </dd>
                             <dt class="col-sm-4">Trạng thái</dt>
                             <dd class="col-sm-8">
                                 @if ($product->trang_thai)

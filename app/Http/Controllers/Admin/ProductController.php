@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Services\PromotionPricingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ use Throwable;
 
 class ProductController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, PromotionPricingService $pricing): View
     {
         $query = Product::query()->with('category')->withCount(['images', 'variants']);
 
@@ -49,8 +50,11 @@ class ProductController extends Controller
             $query->where('noi_bat', true);
         }
 
+        $products = $query->orderByDesc('ngay_nhap')->orderByDesc('id')->paginate(10)->withQueryString();
+
         return view('admin.products.index', [
-            'products' => $query->orderByDesc('ngay_nhap')->orderByDesc('id')->paginate(10)->withQueryString(),
+            'products' => $products,
+            'promotionQuotes' => $pricing->quotes($products->getCollection()),
             'categories' => Category::query()->orderBy('ten_danh_muc')->get(),
             'totalCount' => Product::count(),
             'activeCount' => Product::where('trang_thai', true)->count(),
@@ -70,7 +74,7 @@ class ProductController extends Controller
         ]);
     }
 
-    public function show(Product $product): View
+    public function show(Product $product, PromotionPricingService $pricing): View
     {
         $product->load(['category', 'images', 'variants']);
 
@@ -103,6 +107,7 @@ class ProductController extends Controller
 
         return view('admin.products.show', [
             'product' => $product,
+            'promotionQuote' => $pricing->quotes(collect([$product]))[$product->id],
             'salesSummary' => $salesSummary,
             'orders' => $orders,
             'variantStatuses' => ProductVariant::statuses(),

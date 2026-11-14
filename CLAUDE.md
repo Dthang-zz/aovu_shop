@@ -1,3 +1,46 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+AovuShop is a Vietnamese clothing shop (Laravel 13, PHP 8.5, served locally via Laragon) with two halves: an admin panel under `/admin/*` and a public storefront (`/shop`, `/cart`, `/checkout`, `/tin-tuc`, `/support-chat`). All routes live in `routes/web.php`; there is no authentication or admin middleware yet. UI text, validation messages and DB column names are in Vietnamese (`APP_LOCALE=vi`). Keep new user-facing copy in Vietnamese.
+
+## Commands
+
+- Run all tests: `composer test` (or `php artisan test --compact`)
+- Single file / single test: `php artisan test --compact tests/Feature/OrderManagementTest.php` or `php artisan test --compact --filter=testName`
+- Format PHP: `vendor/bin/pint --dirty --format agent`
+- Dev server + Vite: `composer run dev`; production assets: `npm run build`
+- Seed demo data: `php artisan db:seed` (runs `MasterTestDataSeeder`)
+
+## Database: legacy schema + migrations
+
+This is the most important thing to understand before touching data code.
+
+- The local DB is MySQL `aovu_shop`, originally built from the dump `aovu_shop.sql`. The core commerce tables (`don_hangs`, `chi_tiet_don_hangs`, `tai_khoans`, `chuc_vus`, `vouchers`, `bien_thes`, `gio_hangs`, `danh_gias`, `phuong_thuc_thanh_toans`, `dia_chis`, …) exist **only in that dump**. They have no migrations.
+- Migrations cover a subset. Legacy-table migrations (`danh_mucs`, `san_phams`, `yeu_cau_doi_tras`, …) start with `if (Schema::hasTable(...)) return;` so they don't break the existing DB. Newer features (promotions, news, support chat, return workflows, banners) use normal English-named tables.
+- Legacy models map to Vietnamese tables with `protected $table = '...'` and usually `public $timestamps = false`. Columns are Vietnamese (`trang_thai`, `ten_san_pham`, `gia_san_pham`, `danh_muc_id`, …). Customers and staff are `App\Models\TaiKhoan` (`tai_khoans`) with role `ChucVu`, **not** `App\Models\User`.
+- Status values are integer constants on the models (`Order::STATUS_*`, `Order::PAYMENT_*`, `ReturnRequest::STATUS_*` / `TYPE_*`). Use those, not magic numbers.
+- Much of the code queries legacy tables with `DB::table('don_hangs')` and guards with `Schema::hasTable` / `Schema::hasColumn` (see `AppServiceProvider`, `CheckoutService`). Keep those guards when you touch such code.
+
+## Testing
+
+- Tests run on in-memory SQLite (`phpunit.xml`) with `RefreshDatabase`. Because legacy tables have no migrations, feature tests that need them create the tables themselves in `setUp()` with `Schema::create(...)` (see `StorefrontCheckoutTest`, `OrderManagementTest`). Follow that pattern rather than adding migrations for dump-only tables.
+- Factories exist only for `User`, `SupportConversation` and `SupportMessage`. For legacy tables, tests insert rows directly with `DB::table(...)->insert(...)`.
+- One feature test file per admin module (`*ManagementTest.php`).
+
+## Architecture
+
+- **Controllers hold most of the logic.** Validation is inline (`$request->validate`) and queries are written in controllers. The only services are in `app/Services`:
+  - `CheckoutService` builds a quote from the session cart and places orders in a `DB::transaction` with `lockForUpdate` on variants and vouchers.
+  - `PromotionPricingService` applies active `promotions` to product prices. The storefront and checkout both use it.
+- **Storefront cart** is session-based (`Session` key `storefront_cart`). It is not stored in the legacy `gio_hangs` table.
+- **Returns / exchanges**: `ReturnRequest` (`yeu_cau_doi_tras`) has a multi-step status flow. `ReturnRequestWorkflow` and `ReturnRequestHistory` track it. Return requests can be created from the admin returns screen or from a support-chat conversation. Refunds are confirmed manually in `Admin\RefundWalletController` (`/admin/finance/refunds`).
+- **Support chat**: the customer side is `SupportChatController` and the admin side is `Admin\SupportChatController`. They use `support_conversations` and `support_messages` and are polled over HTTP (throttled routes, no websockets).
+- **Views**: Blade with the AdminLTE 3 (Bootstrap 4 + jQuery) assets served from `public/adminlte`; the `AdminLTE-3.2.0/` folder is the vendor source copy. `layouts/admin.blade.php` and `layouts/storefront.blade.php` are the two layouts. The admin sidebar's counters (pending orders and returns) come from a view composer in `AppServiceProvider`. Admin views follow `resources/views/admin/<module>/{index,create,edit,show}.blade.php`. Tailwind/Vite is installed but the existing pages use AdminLTE/Bootstrap classes.
+- Admin routes are named `admin.<module>.<action>`; storefront routes `shop.*`.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

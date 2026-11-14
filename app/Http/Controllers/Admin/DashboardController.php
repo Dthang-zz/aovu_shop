@@ -74,6 +74,10 @@ class DashboardController extends Controller
                 ->where('trang_thai_thanh_toan', Order::PAYMENT_PAID)
                 ->sum('tong_tien')
             : 0.0;
+        $refundedTotal = (float) DB::table('support_return_workflows')
+            ->whereBetween('refunded_at', [$start, $periodEnd])
+            ->sum('refund_amount');
+        $netRevenue = $revenueTotal - $refundedTotal;
         $ordersInPeriod = $ordersAvailable ? $periodOrders()->count() : 0;
         $pendingOrders = $ordersAvailable
             ? DB::table('don_hangs')->where('trang_thai', Order::STATUS_PENDING)->count()
@@ -279,6 +283,8 @@ class DashboardController extends Controller
             'todayRevenue' => $todayRevenue,
             'ordersToday' => $ordersToday,
             'revenueTotal' => $revenueTotal,
+            'refundedTotal' => $refundedTotal,
+            'netRevenue' => $netRevenue,
             'ordersInPeriod' => $ordersInPeriod,
             'customersInPeriod' => $customersInPeriod,
             'productsSold' => $productsSold,

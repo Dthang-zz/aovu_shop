@@ -249,7 +249,7 @@
                         aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block">
-                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-muted">Cửa hàng</a>
+                    <a href="{{ route('shop.products.index') }}" class="nav-link text-muted">Cửa hàng</a>
                 </li>
             </ul>
             <ul class="navbar-nav ml-auto align-items-center">
@@ -344,6 +344,14 @@
                                 <p>Đổi / trả hàng</p>
                             </a>
                         </li>
+                        <li class="nav-header">QUẢN LÝ TÀI CHÍNH</li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.finance.refunds.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.finance.refunds.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-wallet"></i>
+                                <p>Ví hoàn tiền</p>
+                            </a>
+                        </li>
                         <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
                         <li class="nav-item">
                             <a href="{{ route('admin.users.index') }}"
@@ -353,17 +361,38 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'promotions']) }}"
-                                class="nav-link {{ ($section ?? '') === 'promotions' ? 'active' : '' }}">
+                            <a href="{{ route('admin.support-chat.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.support-chat.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-comments"></i>
+                                <p>CSKH trực tuyến</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.promotions.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tags"></i>
                                 <p>Khuyến mãi</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'reviews']) }}"
-                                class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
+                            <a href="{{ route('admin.banners.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-image"></i>
+                                <p>Banner</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.reviews.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-star"></i>
                                 <p>Đánh giá</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.news.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.news.*', 'admin.news-categories.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-newspaper"></i>
+                                <p>Bài viết & tin tức</p>
                             </a>
                         </li>
                     </ul>
