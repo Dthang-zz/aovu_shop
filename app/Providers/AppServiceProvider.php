@@ -4,8 +4,11 @@ namespace App\Providers;
 
 use App\Models\Product;
 use App\Models\ReturnRequest;
+use App\Models\TaiKhoan;
+use App\Models\YeuThich;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -37,6 +40,36 @@ class AppServiceProvider extends ServiceProvider
                 'pendingOrderCount' => $pendingOrderCount,
                 'pendingReturnCount' => $pendingReturnCount,
                 'notificationCount' => $pendingOrderCount + $pendingReturnCount,
+            ]);
+        });
+
+        View::composer(['layouts.storefront', 'storefront.*'], function ($view): void {
+            $currentCustomer = null;
+            $customerId = Session::get('customer_id');
+            if ($customerId && Schema::hasTable('tai_khoans')) {
+                $currentCustomer = TaiKhoan::query()->find($customerId);
+            }
+
+            $cart = Session::get('storefront_cart', []);
+            $cartCount = is_array($cart) ? array_sum(array_column($cart, 'quantity')) : 0;
+
+            $wishlistProductIds = [];
+            if ($customerId && Schema::hasTable('yeu_thichs')) {
+                $wishlistProductIds = YeuThich::query()
+                    ->where('tai_khoan_id', $customerId)
+                    ->pluck('san_pham_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+            } else {
+                $guestWishlist = Session::get('storefront_wishlist', []);
+                $wishlistProductIds = is_array($guestWishlist) ? array_map('intval', $guestWishlist) : [];
+            }
+
+            $view->with([
+                'currentCustomer' => $currentCustomer,
+                'cartCount' => $cartCount,
+                'wishlistCount' => count($wishlistProductIds),
+                'favoritedProductIds' => $wishlistProductIds,
             ]);
         });
     }

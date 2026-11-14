@@ -14,9 +14,15 @@ use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VariantController;
+use App\Http\Controllers\CustomerAddressController;
+use App\Http\Controllers\CustomerAuthController;
+use App\Http\Controllers\CustomerCareController;
+use App\Http\Controllers\CustomerProfileController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\SupportChatController;
+use App\Http\Controllers\WishlistController;
+use App\Http\Middleware\EnsureCustomerAuthenticated;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class);
@@ -35,6 +41,54 @@ Route::delete('/cart/items/{item}', [StorefrontController::class, 'removeFromCar
 Route::get('/checkout', [StorefrontController::class, 'checkout'])->name('shop.checkout');
 Route::post('/checkout', [StorefrontController::class, 'placeOrder'])->name('shop.checkout.store');
 Route::get('/checkout/success', [StorefrontController::class, 'orderConfirmation'])->name('shop.checkout.success');
+
+// CSKH (Chăm sóc khách hàng)
+Route::get('/cskh', [CustomerCareController::class, 'index'])->name('cskh.index');
+Route::post('/cskh/yeu-cau', [CustomerCareController::class, 'submitInquiry'])->name('cskh.inquiry.store');
+
+// Quản lý sản phẩm yêu thích (Wishlist)
+Route::get('/yeu-thich', [WishlistController::class, 'index'])->name('shop.wishlist.index');
+Route::post('/yeu-thich/toggle/{product}', [WishlistController::class, 'toggle'])
+    ->whereNumber('product')
+    ->name('shop.wishlist.toggle');
+Route::delete('/yeu-thich/{product}', [WishlistController::class, 'destroy'])
+    ->whereNumber('product')
+    ->name('shop.wishlist.destroy');
+
+// Xác thực tài khoản khách hàng (Client Auth)
+Route::get('/dang-nhap', [CustomerAuthController::class, 'showLoginForm'])->name('customer.login');
+Route::post('/dang-nhap', [CustomerAuthController::class, 'login'])->name('customer.login.store');
+Route::get('/dang-ky', [CustomerAuthController::class, 'showRegisterForm'])->name('customer.register');
+Route::post('/dang-ky', [CustomerAuthController::class, 'register'])->name('customer.register.store');
+Route::post('/dang-xuat', [CustomerAuthController::class, 'logout'])->name('customer.logout');
+Route::post('/demo-login/{id}', [CustomerAuthController::class, 'demoLogin'])
+    ->whereNumber('id')
+    ->name('customer.demo-login');
+
+// Quản lý hồ sơ & địa chỉ nhận hàng (Yêu cầu đăng nhập)
+Route::middleware(EnsureCustomerAuthenticated::class)->group(function () {
+    // Hồ sơ cá nhân
+    Route::get('/tai-khoan/ho-so', [CustomerProfileController::class, 'profile'])->name('customer.profile');
+    Route::put('/tai-khoan/ho-so', [CustomerProfileController::class, 'updateProfile'])->name('customer.profile.update');
+    Route::put('/tai-khoan/doi-mat-khau', [CustomerProfileController::class, 'updatePassword'])->name('customer.password.update');
+    Route::get('/tai-khoan/don-hang', [CustomerProfileController::class, 'orders'])->name('customer.orders');
+    Route::get('/tai-khoan/don-hang/{order}', [CustomerProfileController::class, 'showOrder'])
+        ->whereNumber('order')
+        ->name('customer.orders.show');
+
+    // Sổ địa chỉ nhận hàng
+    Route::get('/tai-khoan/dia-chi', [CustomerAddressController::class, 'index'])->name('customer.addresses.index');
+    Route::post('/tai-khoan/dia-chi', [CustomerAddressController::class, 'store'])->name('customer.addresses.store');
+    Route::put('/tai-khoan/dia-chi/{address}', [CustomerAddressController::class, 'update'])
+        ->whereNumber('address')
+        ->name('customer.addresses.update');
+    Route::delete('/tai-khoan/dia-chi/{address}', [CustomerAddressController::class, 'destroy'])
+        ->whereNumber('address')
+        ->name('customer.addresses.destroy');
+    Route::post('/tai-khoan/dia-chi/{address}/mac-dinh', [CustomerAddressController::class, 'setDefault'])
+        ->whereNumber('address')
+        ->name('customer.addresses.set-default');
+});
 
 Route::get('/support-chat', [SupportChatController::class, 'index'])
     ->middleware('throttle:60,1')

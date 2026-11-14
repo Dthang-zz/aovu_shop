@@ -53,7 +53,16 @@
                             <label for="quantity">Số lượng</label>
                             <input id="quantity" type="number" name="quantity" value="{{ old('quantity', 1) }}" class="form-control" min="1" max="100" required>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-cart-plus mr-1"></i>Thêm vào giỏ</button>
+                        <div class="d-flex align-items-center flex-wrap">
+                            <button type="submit" class="btn btn-primary mr-2 mb-2">
+                                <i class="fas fa-cart-plus mr-1"></i>Thêm vào giỏ
+                            </button>
+                            @php($isFav = in_array($product->id, $favoritedProductIds ?? [], true))
+                            <button type="button" class="btn btn-outline-danger btn-wishlist-toggle mb-2 {{ $isFav ? 'active' : '' }}" data-url="{{ route('shop.wishlist.toggle', $product) }}">
+                                <i class="{{ $isFav ? 'fas text-danger' : 'far' }} fa-heart mr-1"></i>
+                                <span class="wishlist-text">{{ $isFav ? 'Đã yêu thích' : 'Thêm vào yêu thích' }}</span>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

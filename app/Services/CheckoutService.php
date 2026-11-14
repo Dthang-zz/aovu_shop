@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\TaiKhoan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -245,6 +246,13 @@ class CheckoutService
     {
         if (! Schema::hasTable('tai_khoans')) {
             return null;
+        }
+
+        if (Session::has('customer_id')) {
+            $sessionCustomer = TaiKhoan::query()->find(Session::get('customer_id'));
+            if ($sessionCustomer) {
+                return (int) $sessionCustomer->id;
+            }
         }
 
         $email = Str::lower(trim((string) $customer['email_nguoi_nhan']));

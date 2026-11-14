@@ -33,8 +33,12 @@
         @forelse ($products as $product)
             @php($quote = $quotes[$product->id])
             <div class="col-6 col-md-4 col-lg-3 mb-4">
-                <div class="card storefront-card h-100">
-                    <a href="{{ route('shop.products.show', $product) }}" class="position-relative">
+                <div class="card storefront-card h-100 position-relative">
+                    @php($isFav = in_array($product->id, $favoritedProductIds ?? [], true))
+                    <button type="button" class="wishlist-heart-btn btn-wishlist-toggle {{ $isFav ? 'active' : '' }}" data-url="{{ route('shop.wishlist.toggle', $product) }}" title="{{ $isFav ? 'Bỏ yêu thích' : 'Thêm vào yêu thích' }}">
+                        <i class="{{ $isFav ? 'fas text-danger' : 'far text-muted' }} fa-heart"></i>
+                    </button>
+                    <a href="{{ route('shop.products.show', $product) }}" class="position-relative d-block">
                         @if ($product->hinh_anh)
                             <img class="card-img-top storefront-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($product->hinh_anh) }}" alt="{{ $product->ten_san_pham }}">
                         @else

@@ -59,4 +59,9 @@ class Product extends Model
     {
         return $this->belongsToMany(Promotion::class, 'promotion_products', 'product_id', 'promotion_id');
     }
+
+    public function yeuThichs(): HasMany
+    {
+        return $this->hasMany(YeuThich::class, 'san_pham_id');
+    }
 }

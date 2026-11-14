@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -46,6 +49,32 @@ class TaiKhoan extends Model
     public function chucVu(): BelongsTo
     {
         return $this->belongsTo(ChucVu::class, 'chuc_vu_id');
+    }
+
+    public function diaChis(): HasMany
+    {
+        return $this->hasMany(DiaChi::class, 'tai_khoan_id');
+    }
+
+    public function diaChiMacDinh(): HasOne
+    {
+        return $this->hasOne(DiaChi::class, 'tai_khoan_id')->where('mac_dinh', true);
+    }
+
+    public function yeuThichs(): HasMany
+    {
+        return $this->hasMany(YeuThich::class, 'tai_khoan_id');
+    }
+
+    public function sanPhamYeuThichs(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'yeu_thichs', 'tai_khoan_id', 'san_pham_id')
+            ->withPivot('ngay_them');
+    }
+
+    public function donHangs(): HasMany
+    {
+        return $this->hasMany(Order::class, 'tai_khoan_id');
     }
 
     public function avatarUrl(): ?string

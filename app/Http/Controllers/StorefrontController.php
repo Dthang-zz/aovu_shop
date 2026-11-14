@@ -183,9 +183,28 @@ class StorefrontController extends Controller
             Session::put('checkout_voucher_code', $quote['voucher_code']);
         }
 
+        $customerData = [];
+        $savedAddresses = collect();
+        if (Session::has('customer_id') && Schema::hasTable('tai_khoans')) {
+            $customer = \App\Models\TaiKhoan::with('diaChis')->find(Session::get('customer_id'));
+            if ($customer) {
+                $defaultAddress = Schema::hasTable('dia_chis')
+                    ? ($customer->diaChis->firstWhere('mac_dinh', true) ?? $customer->diaChis->first())
+                    : null;
+                $savedAddresses = Schema::hasTable('dia_chis') ? $customer->diaChis : collect();
+                $customerData = [
+                    'ten_nguoi_nhan' => $defaultAddress?->ten_nguoi_nhan ?? $customer->ho_ten,
+                    'email_nguoi_nhan' => $customer->email,
+                    'sdt_nguoi_nhan' => $defaultAddress?->sdt_nguoi_nhan ?? $customer->so_dien_thoai,
+                    'dia_chi_nguoi_nhan' => $defaultAddress ? $defaultAddress->diaChiDayDu() : null,
+                ];
+            }
+        }
+
         return view('storefront.checkout', [
             'quote' => $quote,
-            'customer' => [],
+            'customer' => $customerData,
+            'savedAddresses' => $savedAddresses,
         ]);
     }
 

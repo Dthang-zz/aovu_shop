@@ -24,23 +24,48 @@
         <div class="row">
             <div class="col-lg-7">
                 <div class="card storefront-card">
-                    <div class="card-header bg-white"><strong>Thông tin nhận hàng</strong></div>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong>Thông tin nhận hàng</strong>
+                        @if (empty($currentCustomer))
+                            <small><a href="{{ route('customer.login') }}" class="text-primary"><i class="fas fa-sign-in-alt mr-1"></i>Đăng nhập để chọn địa chỉ đã lưu</a></small>
+                        @endif
+                    </div>
                     <div class="card-body">
+                        @if (! empty($savedAddresses) && $savedAddresses->isNotEmpty())
+                            <div class="form-group bg-light p-3 rounded border mb-3">
+                                <label for="saved_address_selector" class="small font-weight-bold text-primary mb-1">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>Chọn nhanh từ sổ địa chỉ đã lưu:
+                                </label>
+                                <select id="saved_address_selector" class="form-control form-control-sm border-primary">
+                                    <option value="">-- Chọn một địa chỉ đã lưu --</option>
+                                    @foreach ($savedAddresses as $addr)
+                                        <option value="{{ $addr->id }}"
+                                            data-name="{{ $addr->ten_nguoi_nhan }}"
+                                            data-phone="{{ $addr->sdt_nguoi_nhan }}"
+                                            data-address="{{ $addr->diaChiDayDu() }}"
+                                            @selected($addr->mac_dinh)>
+                                            {{ $addr->ten_nguoi_nhan }} ({{ $addr->sdt_nguoi_nhan }}) - {{ $addr->dia_chi_chi_tiet }}, {{ $addr->quan_huyen }} {{ $addr->mac_dinh ? '[Mặc định]' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+
                         <div class="form-group">
                             <label for="ten_nguoi_nhan">Họ tên</label>
-                            <input id="ten_nguoi_nhan" name="ten_nguoi_nhan" class="form-control" required maxlength="100" value="{{ old('ten_nguoi_nhan') }}">
+                            <input id="ten_nguoi_nhan" name="ten_nguoi_nhan" class="form-control" required maxlength="100" value="{{ old('ten_nguoi_nhan', $customer['ten_nguoi_nhan'] ?? '') }}">
                         </div>
                         <div class="form-group">
                             <label for="email_nguoi_nhan">Email</label>
-                            <input id="email_nguoi_nhan" type="email" name="email_nguoi_nhan" class="form-control" required maxlength="255" value="{{ old('email_nguoi_nhan') }}">
+                            <input id="email_nguoi_nhan" type="email" name="email_nguoi_nhan" class="form-control" required maxlength="255" value="{{ old('email_nguoi_nhan', $customer['email_nguoi_nhan'] ?? '') }}">
                         </div>
                         <div class="form-group">
                             <label for="sdt_nguoi_nhan">Số điện thoại</label>
-                            <input id="sdt_nguoi_nhan" name="sdt_nguoi_nhan" class="form-control" required maxlength="15" value="{{ old('sdt_nguoi_nhan') }}">
+                            <input id="sdt_nguoi_nhan" name="sdt_nguoi_nhan" class="form-control" required maxlength="15" value="{{ old('sdt_nguoi_nhan', $customer['sdt_nguoi_nhan'] ?? '') }}">
                         </div>
                         <div class="form-group">
                             <label for="dia_chi_nguoi_nhan">Địa chỉ nhận hàng</label>
-                            <input id="dia_chi_nguoi_nhan" name="dia_chi_nguoi_nhan" class="form-control" required maxlength="255" value="{{ old('dia_chi_nguoi_nhan') }}">
+                            <input id="dia_chi_nguoi_nhan" name="dia_chi_nguoi_nhan" class="form-control" required maxlength="255" value="{{ old('dia_chi_nguoi_nhan', $customer['dia_chi_nguoi_nhan'] ?? '') }}">
                         </div>
                         <div class="form-group mb-0">
                             <label for="ghi_chu">Ghi chú</label>
@@ -74,4 +99,23 @@
             </div>
         </div>
     </form>
+@endsection
+
+@section('scripts')
+    <script>
+        $(function () {
+            $('#saved_address_selector').on('change', function () {
+                var $opt = $(this).find('option:selected');
+                if ($opt.val()) {
+                    var name = $opt.data('name');
+                    var phone = $opt.data('phone');
+                    var address = $opt.data('address');
+
+                    if (name) $('#ten_nguoi_nhan').val(name);
+                    if (phone) $('#sdt_nguoi_nhan').val(phone);
+                    if (address) $('#dia_chi_nguoi_nhan').val(address);
+                }
+            });
+        });
+    </script>
 @endsection
