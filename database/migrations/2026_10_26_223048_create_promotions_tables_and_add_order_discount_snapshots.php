@@ -23,10 +23,19 @@ return new class extends Migration
 
         Schema::create('promotion_products', function (Blueprint $table) {
             $table->unsignedInteger('promotion_id');
-            $table->integer('product_id');
+            $table->unsignedInteger('product_id');
+
             $table->primary(['promotion_id', 'product_id']);
-            $table->foreign('promotion_id')->references('id')->on('promotions')->cascadeOnDelete();
-            $table->foreign('product_id')->references('id')->on('san_phams')->cascadeOnDelete();
+
+            $table->foreign('promotion_id')
+                ->references('id')
+                ->on('promotions')
+                ->cascadeOnDelete();
+
+            $table->foreign('product_id')
+                ->references('id')
+                ->on('san_phams')
+                ->cascadeOnDelete();
         });
 
         if (Schema::hasTable('don_hangs')) {

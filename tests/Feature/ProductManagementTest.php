@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -72,6 +71,7 @@ class ProductManagementTest extends TestCase
             'ma_san_pham' => 'COUNT-003',
             'ten_san_pham' => 'Sản phẩm thứ ba',
             'gia_san_pham' => 300000,
+            'so_luong_ton' => 15,
             'trang_thai' => '1',
         ])->assertRedirect(route('admin.products.index'));
 
@@ -83,6 +83,7 @@ class ProductManagementTest extends TestCase
             'ma_san_pham' => 'COUNT-001',
             'ten_san_pham' => 'Sản phẩm đã sửa',
             'gia_san_pham' => 110000,
+            'so_luong_ton' => 6,
             'trang_thai' => '1',
         ])->assertRedirect(route('admin.products.index'));
 
@@ -111,6 +112,7 @@ class ProductManagementTest extends TestCase
             'danh_muc_id' => $category->id,
             'gia_san_pham' => 459000,
             'gia_khuyen_mai' => 399000,
+            'so_luong_ton' => 20,
             'mo_ta' => 'Chất liệu linen thoáng mát.',
             'chat_lieu' => '100% linen tự nhiên.',
             'huong_dan_su_dung' => 'Giặt nhẹ, không dùng thuốc tẩy.',
@@ -153,6 +155,7 @@ class ProductManagementTest extends TestCase
             'danh_muc_id' => $category->id,
             'gia_san_pham' => 479000,
             'gia_khuyen_mai' => '',
+            'so_luong_ton' => 18,
             'mo_ta' => 'Mô tả mới.',
             'chat_lieu' => 'Linen pha cotton.',
             'huong_dan_su_dung' => 'Ủi ở nhiệt độ thấp.',
@@ -189,120 +192,41 @@ class ProductManagementTest extends TestCase
         Storage::disk('public')->assertMissing($newImagePath);
     }
 
-    public function test_product_form_creates_updates_and_removes_variants(): void
+    public function test_product_form_manages_stock_without_variant_fields(): void
     {
         $this->get(route('admin.products.create'))
             ->assertOk()
-            ->assertSee('Biến thể sản phẩm')
-            ->assertDontSee('name="khuyen_mai_bat_dau"', false)
-            ->assertDontSee('name="khuyen_mai_ket_thuc"', false);
+            ->assertSee('Số lượng tồn kho')
+            ->assertDontSee('Biến thể sản phẩm')
+            ->assertDontSee('name="variants', false);
 
         $this->post(route('admin.products.store'), [
-            'ma_san_pham' => 'AO-CO-01',
-            'ten_san_pham' => 'Áo cổ tròn',
+            'ma_san_pham' => 'STOCK-001',
+            'ten_san_pham' => 'Áo tồn kho',
             'gia_san_pham' => 250000,
+            'so_luong_ton' => 12,
             'trang_thai' => '1',
-            'variants' => [
-                [
-                    'sku' => '',
-                    'color' => 'Đỏ',
-                    'size' => 'S',
-                    'price' => '',
-                    'stock' => 12,
-                    'status' => ProductVariant::STATUS_ACTIVE,
-                ],
-                [
-                    'sku' => 'AO-CO-01-DEN-M',
-                    'color' => 'Đen',
-                    'size' => 'M',
-                    'price' => 270000,
-                    'stock' => 0,
-                    'status' => ProductVariant::STATUS_OUT_OF_STOCK,
-                ],
-            ],
         ])->assertRedirect(route('admin.products.index'));
 
-        $product = Product::where('ma_san_pham', 'AO-CO-01')->firstOrFail();
-        $variants = $product->variants()->orderBy('id')->get();
-        $this->get(route('admin.products.edit', $product))
-            ->assertOk()
-            ->assertSee('Biến thể sản phẩm')
-            ->assertDontSee('name="khuyen_mai_bat_dau"', false)
-            ->assertDontSee('name="khuyen_mai_ket_thuc"', false);
-
-        $this->assertCount(2, $variants);
-        $this->assertNotSame('', $variants[0]->sku);
-        $this->assertDatabaseHas('product_variants', [
-            'id' => $variants[0]->id,
-            'product_id' => $product->id,
-            'color' => 'Đỏ',
-            'size' => 'S',
-            'price' => null,
-            'stock' => 12,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
-        $this->assertDatabaseHas('product_variants', [
-            'id' => $variants[1]->id,
-            'sku' => 'AO-CO-01-DEN-M',
-            'price' => 270000,
-            'status' => ProductVariant::STATUS_OUT_OF_STOCK,
-        ]);
+        $product = Product::where('ma_san_pham', 'STOCK-001')->firstOrFail();
+        $this->assertSame(12, (int) $product->so_luong_ton);
 
         $this->put(route('admin.products.update', $product), [
-            'ma_san_pham' => 'AO-CO-01',
-            'ten_san_pham' => 'Áo cổ tròn cập nhật',
+            'ma_san_pham' => 'STOCK-001',
+            'ten_san_pham' => 'Áo tồn kho cập nhật',
             'gia_san_pham' => 260000,
-            'trang_thai' => '1',
-            'variants' => [
-                [
-                    'id' => $variants[0]->id,
-                    'sku' => $variants[0]->sku,
-                    'color' => 'Đỏ',
-                    'size' => 'S',
-                    'price' => 265000,
-                    'stock' => 8,
-                    'status' => ProductVariant::STATUS_INACTIVE,
-                ],
-            ],
-        ])->assertRedirect(route('admin.products.index'));
-
-        $this->assertDatabaseHas('product_variants', [
-            'id' => $variants[0]->id,
-            'price' => 265000,
-            'stock' => 8,
-            'status' => ProductVariant::STATUS_INACTIVE,
-        ]);
-        $this->assertDatabaseMissing('product_variants', ['id' => $variants[1]->id]);
-
-        $this->put(route('admin.products.update', $product), [
-            'ma_san_pham' => 'AO-CO-01',
-            'ten_san_pham' => 'Áo cổ tròn cập nhật',
-            'gia_san_pham' => 260000,
+            'so_luong_ton' => 8,
             'trang_thai' => '1',
         ])->assertRedirect(route('admin.products.index'));
 
-        $this->assertDatabaseMissing('product_variants', ['id' => $variants[0]->id]);
-
-        $variant = $product->variants()->create([
-            'sku' => 'AO-CO-01-DEN-L',
-            'color' => 'Đen',
-            'size' => 'L',
-            'stock' => 2,
-            'status' => ProductVariant::STATUS_ACTIVE,
+        $this->assertDatabaseHas('san_phams', [
+            'id' => $product->id,
+            'so_luong_ton' => 8,
         ]);
-        $this->delete(route('admin.products.destroy', $product))
-            ->assertRedirect(route('admin.products.index'));
-
-        $this->assertDatabaseMissing('san_phams', ['id' => $product->id]);
-        $this->assertDatabaseMissing('product_variants', ['id' => $variant->id]);
     }
 
     public function test_product_detail_reports_completed_order_revenue_and_orders(): void
     {
-        Schema::create('bien_thes', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('san_pham_id')->nullable();
-        });
         Schema::create('don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->string('ma_don_hang');
@@ -312,7 +236,7 @@ class ProductManagementTest extends TestCase
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
-            $table->unsignedInteger('bien_the_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
             $table->decimal('thanh_tien', 12, 0)->nullable();
@@ -324,7 +248,6 @@ class ProductManagementTest extends TestCase
             'gia_san_pham' => 100000,
             'trang_thai' => true,
         ]);
-        $variantId = DB::table('bien_thes')->insertGetId(['san_pham_id' => $product->id]);
         $completedOrderId = DB::table('don_hangs')->insertGetId([
             'ma_don_hang' => 'ORD-COMPLETED',
             'ngay_dat' => '2026-10-20 10:00:00',
@@ -332,7 +255,7 @@ class ProductManagementTest extends TestCase
         ]);
         DB::table('chi_tiet_don_hangs')->insert([
             'don_hang_id' => $completedOrderId,
-            'bien_the_id' => $variantId,
+            'san_pham_id' => $product->id,
             'don_gia' => 125000,
             'so_luong' => 2,
             'thanh_tien' => 250000,
@@ -345,7 +268,7 @@ class ProductManagementTest extends TestCase
         ]);
         DB::table('chi_tiet_don_hangs')->insert([
             'don_hang_id' => $pendingOrderId,
-            'bien_the_id' => $variantId,
+            'san_pham_id' => $product->id,
             'don_gia' => 125000,
             'so_luong' => 1,
             'thanh_tien' => 125000,
@@ -360,10 +283,6 @@ class ProductManagementTest extends TestCase
 
     public function test_active_campaign_price_is_shown_in_product_list_and_detail(): void
     {
-        Schema::create('bien_thes', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('san_pham_id')->nullable();
-        });
         Schema::create('don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->string('ma_don_hang');
@@ -373,7 +292,7 @@ class ProductManagementTest extends TestCase
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
-            $table->unsignedInteger('bien_the_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
             $table->decimal('thanh_tien', 12, 0)->nullable();
@@ -410,45 +329,6 @@ class ProductManagementTest extends TestCase
             ->assertSee('Summer Sale');
     }
 
-    public function test_product_form_rejects_variant_sku_already_used_by_another_product(): void
-    {
-        $existingProduct = Product::create([
-            'ma_san_pham' => 'EXISTING-01',
-            'ten_san_pham' => 'Sản phẩm hiện có',
-            'gia_san_pham' => 100000,
-            'trang_thai' => true,
-        ]);
-        $existingProduct->variants()->create([
-            'sku' => 'SHARED-VARIANT-SKU',
-            'color' => 'Đen',
-            'size' => 'M',
-            'stock' => 2,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
-
-        $this->from(route('admin.products.create'))
-            ->post(route('admin.products.store'), [
-                'ma_san_pham' => 'NEW-001',
-                'ten_san_pham' => 'Sản phẩm mới',
-                'gia_san_pham' => 200000,
-                'trang_thai' => '1',
-                'variants' => [
-                    [
-                        'sku' => 'shared-variant-sku',
-                        'color' => 'Đỏ',
-                        'size' => 'S',
-                        'stock' => 1,
-                        'status' => ProductVariant::STATUS_ACTIVE,
-                    ],
-                ],
-            ])
-            ->assertRedirect(route('admin.products.create'))
-            ->assertSessionHasErrors('variants.0.sku');
-
-        $this->assertDatabaseCount('san_phams', 1);
-        $this->assertDatabaseCount('product_variants', 1);
-    }
-
     public function test_product_validation_rejects_duplicate_sku_invalid_prices_and_category(): void
     {
         Product::create([
@@ -473,30 +353,10 @@ class ProductManagementTest extends TestCase
                 'ten_san_pham',
                 'danh_muc_id',
                 'gia_khuyen_mai',
+                'so_luong_ton',
             ]);
 
         $this->assertDatabaseCount('san_phams', 1);
     }
 
-    public function test_product_cannot_be_deleted_while_variants_reference_it(): void
-    {
-        $product = Product::create([
-            'ma_san_pham' => 'AO-HAS-VARIANTS',
-            'ten_san_pham' => 'Áo có biến thể',
-            'gia_san_pham' => 250000,
-            'trang_thai' => true,
-        ]);
-
-        Schema::create('bien_thes', function (Blueprint $table) {
-            $table->increments('id');
-            $table->unsignedInteger('san_pham_id')->nullable();
-        });
-        DB::table('bien_thes')->insert(['san_pham_id' => $product->id]);
-
-        $this->delete(route('admin.products.destroy', $product))
-            ->assertRedirect(route('admin.products.index'))
-            ->assertSessionHas('error');
-
-        $this->assertDatabaseHas('san_phams', ['id' => $product->id]);
-    }
 }

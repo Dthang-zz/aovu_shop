@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
-use App\Models\ProductVariant;
+use App\Models\Product;
 use App\Models\ReturnRequest;
 use App\Models\ReturnRequestWorkflow;
 use App\Models\SupportConversation;
@@ -35,6 +35,7 @@ class ReturnRequestManagementTest extends TestCase
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->unsignedInteger('bien_the_id')->nullable();
             $table->unsignedBigInteger('product_variant_id')->nullable();
             $table->string('ten_san_pham')->nullable();
@@ -560,7 +561,7 @@ class ReturnRequestManagementTest extends TestCase
     public function test_exchange_requires_stock_price_difference_settlement_and_delivery_confirmation(): void
     {
         $this->seedOrderDetails();
-        $replacement = $this->createVariant('REPLACEMENT-M', 300000, 3);
+        $replacement = $this->createReplacementProduct('REPLACEMENT-M', 300000, 3);
         $requestId = $this->createRequest(ReturnRequest::TYPE_EXCHANGE, ReturnRequest::STATUS_PROCESSING);
 
         $this->put(route('admin.returns.update', $requestId), [
@@ -583,7 +584,7 @@ class ReturnRequestManagementTest extends TestCase
 
         $payload = [
             'trang_thai' => ReturnRequest::STATUS_EXCHANGE_SHIPPED,
-            'replacement_variant_id' => $replacement->id,
+            'replacement_product_id' => $replacement->id,
             'tracking_code' => 'SHIP-601',
         ];
         $this->from(route('admin.returns.show', $requestId))
@@ -597,13 +598,13 @@ class ReturnRequestManagementTest extends TestCase
 
         $this->assertDatabaseHas('support_return_workflows', [
             'return_request_id' => $requestId,
-            'replacement_variant_id' => $replacement->id,
-            'replacement_name' => 'Áo thay thế · REPLACEMENT-M (Đen / M)',
+            'replacement_product_id' => $replacement->id,
+            'replacement_name' => 'Áo thay thế · SP-REPLACEMENT-M',
             'replacement_price' => 300000,
             'price_difference' => 50000,
             'tracking_code' => 'SHIP-601',
         ]);
-        $this->assertSame(2, $replacement->fresh()->stock);
+        $this->assertSame(2, (int) $replacement->fresh()->so_luong_ton);
 
         $this->from(route('admin.returns.show', $requestId))
             ->put(route('admin.returns.update', $requestId), [
@@ -664,11 +665,11 @@ class ReturnRequestManagementTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_passing_inspection_returns_the_items_to_the_original_variant_stock(): void
+    public function test_passing_inspection_returns_the_items_to_the_original_product_stock(): void
     {
         $this->seedOrderDetails();
-        $original = $this->createVariant('LINEN-M', 250000, 4);
-        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['product_variant_id' => $original->id]);
+        $original = $this->createReplacementProduct('LINEN-M', 250000, 4);
+        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['san_pham_id' => $original->id]);
         $requestId = $this->createRequest(ReturnRequest::TYPE_RETURN, ReturnRequest::STATUS_RETURN_RECEIVED);
         ReturnRequestWorkflow::query()->create(['return_request_id' => $requestId]);
 
@@ -677,7 +678,7 @@ class ReturnRequestManagementTest extends TestCase
             'inspection_notes' => 'Hàng còn nguyên tem mác.',
         ])->assertRedirect(route('admin.returns.show', $requestId));
 
-        $this->assertSame(5, $original->fresh()->stock);
+        $this->assertSame(5, (int) $original->fresh()->so_luong_ton);
         $this->assertNotNull(ReturnRequestWorkflow::query()->where('return_request_id', $requestId)->value('restocked_at'));
         $this->assertDatabaseHas('support_return_histories', [
             'return_request_id' => $requestId,
@@ -689,8 +690,8 @@ class ReturnRequestManagementTest extends TestCase
     public function test_inspection_without_collecting_the_item_does_not_change_stock(): void
     {
         $this->seedOrderDetails();
-        $original = $this->createVariant('LINEN-M', 250000, 4);
-        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['product_variant_id' => $original->id]);
+        $original = $this->createReplacementProduct('LINEN-M', 250000, 4);
+        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['san_pham_id' => $original->id]);
         $requestId = $this->createRequest(ReturnRequest::TYPE_RETURN, ReturnRequest::STATUS_APPROVED);
         ReturnRequestWorkflow::query()->create(['return_request_id' => $requestId, 'collection_waived' => true]);
 
@@ -699,15 +700,15 @@ class ReturnRequestManagementTest extends TestCase
             'inspection_notes' => 'Khách gửi ảnh lỗi, không cần thu hồi.',
         ])->assertRedirect(route('admin.returns.show', $requestId));
 
-        $this->assertSame(4, $original->fresh()->stock);
+        $this->assertSame(4, (int) $original->fresh()->so_luong_ton);
         $this->assertNull(ReturnRequestWorkflow::query()->where('return_request_id', $requestId)->value('restocked_at'));
     }
 
     public function test_failed_inspection_rejects_a_received_return_without_restocking(): void
     {
         $this->seedOrderDetails();
-        $original = $this->createVariant('LINEN-M', 250000, 4);
-        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['product_variant_id' => $original->id]);
+        $original = $this->createReplacementProduct('LINEN-M', 250000, 4);
+        DB::table('chi_tiet_don_hangs')->where('id', 200)->update(['san_pham_id' => $original->id]);
         $requestId = $this->createRequest(ReturnRequest::TYPE_RETURN, ReturnRequest::STATUS_RETURN_RECEIVED);
 
         $this->from(route('admin.returns.show', $requestId))
@@ -726,7 +727,7 @@ class ReturnRequestManagementTest extends TestCase
         ])->assertRedirect(route('admin.returns.show', $requestId));
 
         $this->assertDatabaseHas('yeu_cau_doi_tras', ['id' => $requestId, 'trang_thai' => ReturnRequest::STATUS_REJECTED]);
-        $this->assertSame(4, $original->fresh()->stock);
+        $this->assertSame(4, (int) $original->fresh()->so_luong_ton);
     }
 
     public function test_finance_cannot_refund_more_than_the_customer_paid_for_the_returned_items(): void
@@ -822,11 +823,11 @@ class ReturnRequestManagementTest extends TestCase
             ->assertDontSee('name="replacement_variant_id"', false);
     }
 
-    public function test_exchange_edit_page_lists_replacement_variants_in_stock(): void
+    public function test_exchange_edit_page_lists_replacement_products_in_stock(): void
     {
         $this->seedOrderDetails();
-        $inStock = $this->createVariant('SWAP-L', 260000, 2);
-        $this->createVariant('SWAP-XL', 260000, 0);
+        $inStock = $this->createReplacementProduct('SWAP-L', 260000, 2);
+        $this->createReplacementProduct('SWAP-XL', 260000, 0);
         $requestId = $this->createRequest(ReturnRequest::TYPE_EXCHANGE, ReturnRequest::STATUS_INSPECTED);
 
         $this->get(route('admin.returns.edit', $requestId))
@@ -856,22 +857,17 @@ class ReturnRequestManagementTest extends TestCase
         $this->get(route('admin.returns.edit', 999))->assertNotFound();
     }
 
-    private function createVariant(string $sku, int $price, int $stock): ProductVariant
+    private function createReplacementProduct(string $sku, int $price, int $stock): Product
     {
         $productId = DB::table('san_phams')->insertGetId([
             'ma_san_pham' => 'SP-'.$sku,
             'ten_san_pham' => 'Áo thay thế',
+            'gia_san_pham' => $price,
+            'so_luong_ton' => $stock,
+            'trang_thai' => true,
         ]);
 
-        return ProductVariant::query()->create([
-            'product_id' => $productId,
-            'sku' => $sku,
-            'color' => 'Đen',
-            'size' => 'M',
-            'price' => $price,
-            'stock' => $stock,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
+        return Product::query()->findOrFail($productId);
     }
 
     private function seedOrderDetails(): void

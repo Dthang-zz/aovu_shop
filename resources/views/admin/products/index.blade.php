@@ -118,7 +118,7 @@
                                 @endif
                                 <div>
                                     <div class="font-weight-bold text-dark">{{ $product->ten_san_pham }}</div>
-                                    <small class="text-muted">Mã: {{ $product->ma_san_pham }} · {{ $product->images_count }} ảnh · {{ $product->variants_count }} biến thể</small>
+                                    <small class="text-muted">Mã: {{ $product->ma_san_pham }} · {{ $product->images_count }} ảnh · Tồn kho: {{ number_format($product->so_luong_ton ?? 0) }}</small>
                                     @if ($product->noi_bat)
                                     <span class="badge badge-warning ml-1"><i class="fas fa-star mr-1"></i>Nổi bật</span>
                                     @endif

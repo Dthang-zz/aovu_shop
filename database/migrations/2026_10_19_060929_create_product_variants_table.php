@@ -34,9 +34,9 @@ return new class extends Migration
         });
 
         $hasSkuUnique = collect(Schema::getIndexes('product_variants'))
-            ->contains(fn (array $index): bool => $index['unique'] && $index['columns'] === ['sku']);
+            ->contains(fn(array $index): bool => $index['unique'] && $index['columns'] === ['sku']);
         $hasProductForeignKey = collect(Schema::getForeignKeys('product_variants'))
-            ->contains(fn (array $foreignKey): bool => $foreignKey['columns'] === ['product_id']);
+            ->contains(fn(array $foreignKey): bool => $foreignKey['columns'] === ['product_id']);
 
         Schema::table('product_variants', function (Blueprint $table) use ($hasSkuUnique, $hasProductForeignKey) {
             if (! $hasSkuUnique) {

@@ -19,6 +19,7 @@ class ReturnRequestWorkflow extends Model
         'collection_waived',
         'received_at',
         'inspection_notes',
+        'replacement_product_id',
         'replacement_variant_id',
         'replacement_name',
         'replacement_price',

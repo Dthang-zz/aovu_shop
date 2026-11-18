@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\ProductVariant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -171,19 +170,23 @@ class OrderController extends Controller
 
     private function restockCancelledOrder(int $orderId): void
     {
-        if (! Schema::hasColumn('chi_tiet_don_hangs', 'product_variant_id')) {
+        if (! Schema::hasTable('chi_tiet_don_hangs')
+            || ! Schema::hasColumn('chi_tiet_don_hangs', 'san_pham_id')) {
             return;
         }
 
-        DB::table('chi_tiet_don_hangs')
-            ->where('don_hang_id', $orderId)
-            ->whereNotNull('product_variant_id')
-            ->get(['product_variant_id', 'so_luong'])
-            ->each(function (object $item): void {
-                ProductVariant::query()
-                    ->whereKey($item->product_variant_id)
-                    ->increment('stock', (int) $item->so_luong);
-            });
+        $columns = ['san_pham_id', 'so_luong'];
+        $hasVariantColumn = Schema::hasColumn('chi_tiet_don_hangs', 'product_variant_id');
+        if ($hasVariantColumn) $columns[] = 'product_variant_id';
+
+        foreach (DB::table('chi_tiet_don_hangs')->where('don_hang_id', $orderId)->whereNotNull('san_pham_id')->get($columns) as $item) {
+            if ($hasVariantColumn && ! empty($item->product_variant_id) && Schema::hasTable('product_variants')) {
+                DB::table('product_variants')->where('id', $item->product_variant_id)->increment('stock', (int) $item->so_luong);
+            }
+            DB::table('san_phams')
+                ->where('id', $item->san_pham_id)
+                ->increment('so_luong_ton', (int) $item->so_luong);
+        }
     }
 
     private function orderQuery()

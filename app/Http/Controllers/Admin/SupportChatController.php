@@ -122,7 +122,7 @@ class SupportChatController extends Controller
         $orderItems = DB::table('chi_tiet_don_hangs')
             ->where('don_hang_id', $order)
             ->orderBy('id')
-            ->get(['id', 'ten_san_pham', 'don_gia', 'thanh_tien', 'so_luong', 'bien_the_id']);
+            ->get(['id', 'ten_san_pham', 'don_gia', 'thanh_tien', 'so_luong']);
         $returnedQuantities = DB::table('yeu_cau_doi_tras')
             ->whereIn('chi_tiet_don_hang_id', $orderItems->pluck('id'))
             ->where('trang_thai', '!=', ReturnRequest::STATUS_REJECTED)
@@ -146,7 +146,6 @@ class SupportChatController extends Controller
                         ),
                         'unit_price' => (int) ($item->don_gia ?? 0),
                         'line_total' => (int) ($item->thanh_tien ?? 0),
-                        'variant_id' => $item->bien_the_id,
                     ];
                 })
                 ->filter(fn (array $item): bool => $item['available_quantity'] > 0)

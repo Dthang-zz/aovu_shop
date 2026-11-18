@@ -30,6 +30,7 @@ class DashboardTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
             $table->unsignedInteger('bien_the_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
             $table->decimal('thanh_tien', 12, 0)->nullable();
             $table->unsignedInteger('so_luong')->nullable();
@@ -57,6 +58,7 @@ class DashboardTest extends TestCase
             'ten_san_pham' => 'Áo Linen',
             'gia_san_pham' => 250000,
             'gia_khuyen_mai' => 200000,
+            'so_luong_ton' => 4,
         ]);
         $variantId = DB::table('bien_thes')->insertGetId([
             'san_pham_id' => $productId,
@@ -88,8 +90,8 @@ class DashboardTest extends TestCase
             'trang_thai' => 4,
         ]);
         DB::table('chi_tiet_don_hangs')->insert([
-            ['don_hang_id' => $todayOrderId, 'bien_the_id' => $variantId, 'so_luong' => 2],
-            ['don_hang_id' => $yesterdayOrderId, 'bien_the_id' => $variantId, 'so_luong' => 3],
+            ['don_hang_id' => $todayOrderId, 'san_pham_id' => $productId, 'so_luong' => 2],
+            ['don_hang_id' => $yesterdayOrderId, 'san_pham_id' => $productId, 'so_luong' => 3],
         ]);
         DB::table('tai_khoans')->insert([
             'ho_ten' => 'Khách mới',
@@ -162,12 +164,14 @@ class DashboardTest extends TestCase
             'gia_san_pham' => 200000,
             'danh_muc_id' => $categoryId,
             'trang_thai' => true,
+            'so_luong_ton' => 20,
         ]);
         $unsoldProductId = DB::table('san_phams')->insertGetId([
             'ma_san_pham' => 'DASH-003',
             'ten_san_pham' => 'Áo chưa bán',
             'gia_san_pham' => 150000,
             'trang_thai' => true,
+            'so_luong_ton' => 30,
         ]);
         $variantId = DB::table('bien_thes')->insertGetId([
             'san_pham_id' => $productId,
@@ -212,8 +216,8 @@ class DashboardTest extends TestCase
             'trang_thai' => 0,
         ]);
         DB::table('chi_tiet_don_hangs')->insert([
-            ['don_hang_id' => $previousOrderId, 'bien_the_id' => $variantId, 'don_gia' => 125000, 'thanh_tien' => 250000, 'so_luong' => 2],
-            ['don_hang_id' => $currentOrderId, 'bien_the_id' => $variantId, 'don_gia' => 175000, 'thanh_tien' => 350000, 'so_luong' => 2],
+            ['don_hang_id' => $previousOrderId, 'san_pham_id' => $productId, 'don_gia' => 125000, 'thanh_tien' => 250000, 'so_luong' => 2],
+            ['don_hang_id' => $currentOrderId, 'san_pham_id' => $productId, 'don_gia' => 175000, 'thanh_tien' => 350000, 'so_luong' => 2],
         ]);
         DB::table('yeu_cau_doi_tras')->insert([
             [

@@ -322,14 +322,7 @@
                                 <p>Sản phẩm</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.variants.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.variants.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-layer-group"></i>
-                                <p>Thuộc tính & biến thể</p>
-                            </a>
-                        </li>
-                        <li class="nav-header">VẬN HÀNH</li>
+<li class="nav-header">VẬN HÀNH</li>
                         <li class="nav-item">
                             <a href="{{ route('admin.orders.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
@@ -372,6 +365,13 @@
                                 class="nav-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tags"></i>
                                 <p>Khuyến mãi</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.vouchers.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-ticket-alt"></i>
+                                <p>Mã giảm giá</p>
                             </a>
                         </li>
                         <li class="nav-item">

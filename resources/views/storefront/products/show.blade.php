@@ -3,6 +3,17 @@
 @section('title', $product->ten_san_pham)
 
 @section('content')
+    @php
+        $hasVariants = $variants->isNotEmpty();
+        $promoPercent = (float) ($quote['discount_percent'] ?? 0);
+        $variantPayload = $variants->map(fn ($variant) => [
+            'id' => $variant->id,
+            'sku' => $variant->sku,
+            'price' => $variant->price,
+            'stock' => (int) $variant->stock,
+            'attributes' => $variant->display_attributes ?? $variant->attribute_values ?? [],
+        ])->values();
+    @endphp
     <a href="{{ route('shop.products.index') }}" class="btn btn-link px-0 mb-3"><i class="fas fa-arrow-left mr-1"></i>Tiếp tục mua sắm</a>
     <div class="card storefront-card">
         <div class="card-body">
@@ -24,41 +35,86 @@
                         <span id="sale-price" class="h3 {{ $quote['promotion'] ? 'text-danger' : '' }} font-weight-bold">{{ number_format($quote['sale_price'], 0, ',', '.') }} ₫</span>
                         <span id="original-price" class="price-old ml-2 {{ $quote['promotion'] ? '' : 'd-none' }}">{{ number_format($quote['original_price'], 0, ',', '.') }} ₫</span>
                     </div>
-                    @if ($product->mo_ta)
-                        <p class="text-muted">{{ $product->mo_ta }}</p>
-                    @endif
+                    @if ($product->mo_ta)<p class="text-muted">{{ $product->mo_ta }}</p>@endif
                     @if ($errors->any())
                         <div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
                     @endif
-                    <form method="POST" action="{{ route('shop.cart.items.store') }}">
+                    <form method="POST" action="{{ route('shop.cart.items.store') }}" id="product-cart-form">
                         @csrf
                         <input type="hidden" name="product_id" value="{{ $product->id }}">
-                        @if ($variants->isNotEmpty())
-                            <div class="form-group">
-                                <label for="variant_id">Phân loại</label>
-                                <select id="variant_id" name="variant_id" class="form-control" required>
-                                    <option value="">Chọn màu / kích thước</option>
-                                    @foreach ($variants as $variant)
-                                        @php($variantQuote = $variantQuotes[$variant->id])
-                                        <option value="{{ $variant->id }}" data-sale-price="{{ $variantQuote['sale_price'] }}" data-original-price="{{ $variantQuote['original_price'] }}" @selected(old('variant_id') == $variant->id)>
-                                            {{ trim(implode(' / ', array_filter([$variant->color, $variant->size]))) }}
-                                            — {{ number_format($variantQuote['sale_price'], 0, ',', '.') }} ₫
-                                            (còn {{ $variant->stock }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <input type="hidden" name="variant_id" id="selected-variant-id" value="{{ old('variant_id') }}">
+                        @if ($hasVariants)
+                            @foreach ($variantAttributes as $attributeName => $values)
+                                <div class="form-group">
+                                    <label for="variant-attribute-{{ $loop->index }}">{{ $attributeName }} <span class="text-danger">*</span></label>
+                                    <select class="form-control variant-attribute-select" id="variant-attribute-{{ $loop->index }}" name="attributes[{{ $attributeName }}]" data-attribute="{{ $attributeName }}" required>
+                                        <option value="">Chọn {{ mb_strtolower($attributeName) }}</option>
+                                        @foreach ($values as $value)
+                                            <option value="{{ $value }}" @selected(old('attributes.'.$attributeName) === $value)>{{ $value }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endforeach
+                            <div class="small text-muted mb-3" id="variant-stock-text">Vui lòng chọn đầy đủ thuộc tính.</div>
+                        @else
+                            <p class="small text-muted">Còn {{ number_format($product->so_luong_ton ?? 0) }} sản phẩm</p>
                         @endif
                         <div class="form-group">
                             <label for="quantity">Số lượng</label>
                             <input id="quantity" type="number" name="quantity" value="{{ old('quantity', 1) }}" class="form-control" min="1" max="100" required>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-cart-plus mr-1"></i>Thêm vào giỏ</button>
+                        <button type="submit" id="add-to-cart-button" class="btn btn-primary" @disabled($hasVariants || (int) ($product->so_luong_ton ?? 0) < 1)><i class="fas fa-cart-plus mr-1"></i>{{ $hasVariants ? 'Chọn phân loại' : ((int) ($product->so_luong_ton ?? 0) < 1 ? 'Hết hàng' : 'Thêm vào giỏ') }}</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    @if ($hasVariants)
+        <script>
+        (() => {
+            const variants = @json($variantPayload);
+            const selectors = Array.from(document.querySelectorAll('.variant-attribute-select'));
+            const idInput = document.getElementById('selected-variant-id');
+            const button = document.getElementById('add-to-cart-button');
+            const stockText = document.getElementById('variant-stock-text');
+            const quantity = document.getElementById('quantity');
+            const salePrice = document.getElementById('sale-price');
+            const originalPrice = document.getElementById('original-price');
+            const percent = {{ $promoPercent }};
+            const fallbackPrice = {{ (int) $product->gia_san_pham }};
+            const formatMoney = amount => Math.round(amount).toLocaleString('vi-VN') + ' ₫';
+            const findVariant = () => {
+                const selected = {};
+                selectors.forEach(select => selected[select.dataset.attribute] = select.value);
+                if (Object.values(selected).some(value => !value)) return null;
+                return variants.find(variant => Object.entries(selected).every(([name, value]) => String(variant.attributes?.[name] ?? '') === value)) || null;
+            };
+            const update = () => {
+                const variant = findVariant();
+                if (!variant) {
+                    idInput.value = ''; button.disabled = true;
+                    stockText.textContent = 'Tổ hợp phân loại này không tồn tại. Vui lòng chọn lại.';
+                    return;
+                }
+                idInput.value = variant.id;
+                const stock = Number(variant.stock || 0);
+                const base = variant.price === null || variant.price === '' ? fallbackPrice : Number(variant.price);
+                const discount = Math.round(base * percent / 100);
+                salePrice.textContent = formatMoney(base - discount);
+                originalPrice.textContent = formatMoney(base);
+                originalPrice.classList.toggle('d-none', percent <= 0);
+                stockText.textContent = stock > 0 ? `Còn ${stock} sản phẩm trong phân loại này` : 'Phân loại này đã hết hàng.';
+                quantity.max = Math.min(100, stock);
+                if (Number(quantity.value) > stock) quantity.value = Math.max(1, stock);
+                button.disabled = stock < 1;
+                button.innerHTML = stock > 0 ? '<i class="fas fa-cart-plus mr-1"></i>Thêm vào giỏ' : 'Hết hàng';
+            };
+            selectors.forEach(select => select.addEventListener('change', update));
+            update();
+        })();
+        </script>
+    @endif
 
     <section class="card storefront-card mt-4" aria-labelledby="product-reviews-heading">
         <div class="card-header bg-white">
@@ -104,22 +160,4 @@
             @endif
         </div>
     </section>
-@endsection
-
-@section('scripts')
-    <script>
-        document.getElementById('variant_id')?.addEventListener('change', function () {
-            const option = this.selectedOptions[0];
-            if (!option || !option.dataset.salePrice) {
-                return;
-            }
-
-            const salePrice = document.getElementById('sale-price');
-            const originalPrice = document.getElementById('original-price');
-            salePrice.textContent = Number(option.dataset.salePrice).toLocaleString('vi-VN') + ' ₫';
-            originalPrice.textContent = Number(option.dataset.originalPrice).toLocaleString('vi-VN') + ' ₫';
-            originalPrice.classList.toggle('d-none', option.dataset.salePrice === option.dataset.originalPrice);
-            salePrice.classList.toggle('text-danger', option.dataset.salePrice !== option.dataset.originalPrice);
-        });
-    </script>
 @endsection
