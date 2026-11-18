@@ -249,7 +249,7 @@
                         aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block">
-                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-muted">Cửa hàng</a>
+                    <a href="{{ route('shop.products.index') }}" class="nav-link text-muted">Cửa hàng</a>
                 </li>
             </ul>
             <ul class="navbar-nav ml-auto align-items-center">
@@ -265,13 +265,9 @@
                     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <span class="dropdown-header">{{ number_format($notificationCount) }} thông báo cần lưu ý</span>
                         <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'orders']) }}" class="dropdown-item"><i
+                        <a href="{{ route('admin.orders.index') }}" class="dropdown-item"><i
                                 class="fas fa-shopping-bag mr-2 text-primary"></i>
                             {{ number_format($pendingOrderCount) }} đơn hàng chờ xử lý</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{{ route('admin.resource', ['section' => 'inventory']) }}" class="dropdown-item"><i
-                                class="fas fa-exclamation-triangle mr-2 text-warning"></i>
-                            {{ number_format($lowStockVariantCount) }} biến thể sắp hết hàng</a>
                         <div class="dropdown-divider"></div>
                         <a href="{{ route('admin.returns.index') }}" class="dropdown-item"><i
                                 class="fas fa-exchange-alt mr-2 text-warning"></i>
@@ -323,60 +319,80 @@
                             <a href="{{ route('admin.products.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tshirt"></i>
-                                <p>Sản phẩm</p><span
-                                    class="right badge badge-primary">{{ number_format($productCount) }}</span>
+                                <p>Sản phẩm</p>
                             </a>
                         </li>
+<li class="nav-header">VẬN HÀNH</li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.variants.index') }}"
-                                class="nav-link {{ request()->routeIs('admin.variants.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-layer-group"></i>
-                                <p>Thuộc tính & biến thể</p>
-                            </a>
-                        </li>
-                        <li class="nav-header">VẬN HÀNH</li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'inventory']) }}"
-                                class="nav-link {{ ($section ?? '') === 'inventory' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-warehouse"></i>
-                                <p>Kho hàng</p><span class="right badge badge-warning">8</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'orders']) }}"
-                                class="nav-link {{ ($section ?? '') === 'orders' ? 'active' : '' }}">
+                            <a href="{{ route('admin.orders.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-shopping-bag"></i>
-                                <p>Đơn hàng</p><span class="right badge badge-danger">18</span>
-                            </a>
-                        </li>
-                        <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'users']) }}"
-                                class="nav-link {{ ($section ?? '') === 'users' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-users"></i>
-                                <p>Người dùng</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'promotions']) }}"
-                                class="nav-link {{ ($section ?? '') === 'promotions' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-tags"></i>
-                                <p>Khuyến mãi</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.resource', ['section' => 'reviews']) }}"
-                                class="nav-link {{ ($section ?? '') === 'reviews' ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-star"></i>
-                                <p>Đánh giá</p><span class="right badge badge-warning">12</span>
+                                <p>Đơn hàng</p>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('admin.returns.index') }}"
                                 class="nav-link {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-exchange-alt"></i>
-                                <p>Đổi / trả hàng</p><span
-                                    class="right badge badge-info">{{ number_format($pendingReturnCount) }}</span>
+                                <p>Đổi / trả hàng</p>
+                            </a>
+                        </li>
+                        <li class="nav-header">QUẢN LÝ TÀI CHÍNH</li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.finance.refunds.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.finance.refunds.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-wallet"></i>
+                                <p>Ví hoàn tiền</p>
+                            </a>
+                        </li>
+                        <li class="nav-header">KHÁCH HÀNG & TIỆN ÍCH</li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.users.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-users"></i>
+                                <p>Khách hàng</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.support-chat.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.support-chat.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-comments"></i>
+                                <p>CSKH trực tuyến</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.promotions.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.promotions.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-tags"></i>
+                                <p>Khuyến mãi</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.vouchers.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-ticket-alt"></i>
+                                <p>Mã giảm giá</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.banners.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-image"></i>
+                                <p>Banner</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.reviews.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-star"></i>
+                                <p>Đánh giá</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.news.index') }}"
+                                class="nav-link {{ request()->routeIs('admin.news.*', 'admin.news-categories.*') ? 'active' : '' }}">
+                                <i class="nav-icon far fa-newspaper"></i>
+                                <p>Bài viết & tin tức</p>
                             </a>
                         </li>
                     </ul>

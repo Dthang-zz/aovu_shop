@@ -65,17 +65,11 @@
                             <small class="form-text text-muted">Giá khuyến mãi phải thấp hơn giá bán.</small>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="khuyen_mai_bat_dau">Bắt đầu khuyến mãi</label>
-                            <input id="khuyen_mai_bat_dau" type="datetime-local" name="khuyen_mai_bat_dau" value="{{ old('khuyen_mai_bat_dau', $product->khuyen_mai_bat_dau?->format('Y-m-d\TH:i')) }}" class="form-control @error('khuyen_mai_bat_dau') is-invalid @enderror">
-                            @error('khuyen_mai_bat_dau')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="khuyen_mai_ket_thuc">Kết thúc khuyến mãi</label>
-                            <input id="khuyen_mai_ket_thuc" type="datetime-local" name="khuyen_mai_ket_thuc" value="{{ old('khuyen_mai_ket_thuc', $product->khuyen_mai_ket_thuc?->format('Y-m-d\TH:i')) }}" class="form-control @error('khuyen_mai_ket_thuc') is-invalid @enderror">
-                            @error('khuyen_mai_ket_thuc')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
+                    <div class="form-group" id="product-stock-group">
+                            <label for="so_luong_ton">Số lượng tồn kho sản phẩm</label>
+                            <input id="so_luong_ton" type="number" name="so_luong_ton" value="{{ old('so_luong_ton', $product->so_luong_ton ?? 0) }}" class="form-control @error('so_luong_ton') is-invalid @enderror" min="0" max="2147483647" step="1">
+                            @error('so_luong_ton')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <small class="form-text text-muted">Dùng khi sản phẩm không có biến thể. Nếu có biến thể, tồn kho sẽ tự tính bằng tổng tồn kho của các biến thể.</small>
                     </div>
                     <div class="form-group">
                         <label for="mo_ta">Mô tả sản phẩm</label>
@@ -94,6 +88,46 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card mt-3" id="variants-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0"><i class="fas fa-layer-group text-primary mr-2"></i>Thuộc tính và biến thể</h3>
+                    <span class="badge badge-info">Tùy chọn</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Thêm thuộc tính như Màu sắc, Kích thước. Nhập các giá trị cách nhau bằng dấu phẩy, sau đó tạo tổ hợp biến thể.</p>
+                    <div id="attribute-groups">
+                        @foreach (old('attribute_groups', $attributeGroups ?? []) as $index => $group)
+                            <div class="border rounded p-3 mb-2 attribute-group">
+                                <div class="form-row align-items-end">
+                                    <div class="form-group col-md-4 mb-2">
+                                        <label>Tên thuộc tính</label>
+                                        <input type="text" class="form-control attribute-name" name="attribute_groups[{{ $index }}][name]" value="{{ $group['name'] ?? '' }}" maxlength="50" placeholder="Ví dụ: Màu sắc">
+                                    </div>
+                                    <div class="form-group col-md-7 mb-2">
+                                        <label>Giá trị</label>
+                                        <input type="text" class="form-control attribute-values" name="attribute_groups[{{ $index }}][values]" value="{{ $group['values'] ?? '' }}" maxlength="500" placeholder="Ví dụ: Đen, Trắng, Xám">
+                                    </div>
+                                    <div class="form-group col-md-1 mb-2"><button type="button" class="btn btn-outline-danger btn-block remove-attribute" title="Xóa thuộc tính"><i class="fas fa-times"></i></button></div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-attribute"><i class="fas fa-plus mr-1"></i>Thêm thuộc tính</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="generate-variants"><i class="fas fa-magic mr-1"></i>Tạo biến thể</button>
+                    </div>
+                    <div id="variant-alert" class="small text-muted mb-2">Chưa có biến thể. Sản phẩm sẽ dùng tồn kho chung.</div>
+                    <div id="variant-table-wrap" class="table-responsive" hidden>
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-light"><tr><th>Thuộc tính</th><th style="min-width:150px">SKU</th><th style="min-width:130px">Giá riêng (₫)</th><th style="min-width:100px">Tồn kho</th></tr></thead>
+                            <tbody id="variant-table-body"></tbody>
+                        </table>
+                    </div>
+                    <small class="form-text text-muted mt-2">Giá riêng có thể để trống để sử dụng giá bán của sản phẩm. Tối đa 100 tổ hợp.</small>
+                </div>
+            </div>
+
         </div>
 
         <div class="col-lg-4">
@@ -161,21 +195,153 @@
         <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>{{ $product->exists ? 'Lưu thay đổi' : 'Tạo sản phẩm' }}</button>
     </div>
 </form>
+
 @endsection
 
 @section('scripts')
 <script>
-    (function () {
-        var imageInput = document.getElementById('hinh_anh');
-        if (!imageInput) return;
+(() => {
+    const form = document.querySelector('form[enctype="multipart/form-data"]');
+    const groupContainer = document.getElementById('attribute-groups');
+    const tableWrap = document.getElementById('variant-table-wrap');
+    const tableBody = document.getElementById('variant-table-body');
+    const alertBox = document.getElementById('variant-alert');
+    const stockGroup = document.getElementById('product-stock-group');
+    const stockInput = document.getElementById('so_luong_ton');
+    const skuInput = document.getElementById('ma_san_pham');
+    const existingRows = @json(old('variants', $variantRows ?? []));
+    let attributeCounter = Array.from(groupContainer.querySelectorAll('.attribute-group')).reduce((nextIndex, row) => {
+        const match = row.querySelector('.attribute-name')?.name.match(/^attribute_groups\[(\d+)\]/);
+        return match ? Math.max(nextIndex, Number(match[1]) + 1) : nextIndex;
+    }, 0);
 
-        imageInput.addEventListener('change', function () {
-            var label = imageInput.nextElementSibling;
-            var count = imageInput.files.length;
-            label.textContent = count === 0
-                ? 'Chọn một hoặc nhiều ảnh'
-                : count === 1 ? imageInput.files[0].name : count + ' ảnh đã chọn';
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+    const slug = value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toUpperCase();
+    const keyFor = attrs => JSON.stringify(Object.keys(attrs).sort().reduce((result, key) => (result[key] = attrs[key], result), {}));
+
+    const currentGroups = () => Array.from(groupContainer.querySelectorAll('.attribute-group')).map(row => ({
+        name: row.querySelector('.attribute-name').value.trim(),
+        values: [...new Set(row.querySelector('.attribute-values').value.split(',').map(value => value.trim()).filter(Boolean))]
+    })).filter(group => group.name && group.values.length);
+
+    const addGroup = (name = '', values = '') => {
+        const groupIndex = attributeCounter++;
+        const row = document.createElement('div');
+        row.className = 'border rounded p-3 mb-2 attribute-group';
+        row.innerHTML = `<div class="form-row align-items-end">
+            <div class="form-group col-md-4 mb-2"><label>Tên thuộc tính</label><input type="text" name="attribute_groups[${groupIndex}][name]" class="form-control attribute-name" maxlength="50" placeholder="Ví dụ: Màu sắc" value="${esc(name)}"></div>
+            <div class="form-group col-md-7 mb-2"><label>Giá trị</label><input type="text" name="attribute_groups[${groupIndex}][values]" class="form-control attribute-values" maxlength="500" placeholder="Ví dụ: Đen, Trắng, Xám" value="${esc(values)}"></div>
+            <div class="form-group col-md-1 mb-2"><button type="button" class="btn btn-outline-danger btn-block remove-attribute" title="Xóa thuộc tính"><i class="fas fa-times"></i></button></div>
+        </div>`;
+        groupContainer.appendChild(row);
+    };
+
+    const setStockMode = hasVariants => {
+        stockGroup.hidden = hasVariants;
+        stockInput.required = !hasVariants;
+    };
+
+    const makeCombinations = groups => {
+        let combinations = [{}];
+        groups.forEach(group => {
+            const next = [];
+            combinations.forEach(current => group.values.forEach(value => next.push({...current, [group.name]: value})));
+            combinations = next;
         });
-    })();
+        return combinations;
+    };
+
+    const renderVariants = (preserveExisting = true) => {
+        const groups = currentGroups();
+        const previous = new Map();
+        tableBody.querySelectorAll('tr').forEach(row => {
+            const attrsInput = row.querySelector('input[name$=\"[attributes]\"]');
+            if (!attrsInput) return;
+            let attrs = {}; try { attrs = JSON.parse(attrsInput.value); } catch (_) {}
+            if (Object.keys(attrs).length) previous.set(keyFor(attrs), { sku: row.querySelector('.variant-sku')?.value, price: row.querySelector('.variant-price')?.value, stock: row.querySelector('.variant-stock')?.value, attributes: attrs });
+        });
+        tableBody.innerHTML = '';
+        if (!groups.length) {
+            tableWrap.hidden = true;
+            alertBox.textContent = 'Chưa có biến thể. Sản phẩm sẽ dùng tồn kho chung.';
+            setStockMode(false);
+            return;
+        }
+        const groupNames = groups.map(group => group.name.toLocaleLowerCase());
+        if (new Set(groupNames).size !== groupNames.length) {
+            tableWrap.hidden = true;
+            alertBox.textContent = 'Tên thuộc tính không được trùng nhau.';
+            setStockMode(false);
+            return;
+        }
+        const combinations = makeCombinations(groups);
+        if (combinations.length > 100) {
+            alertBox.textContent = 'Có quá nhiều tổ hợp (' + combinations.length + '). Vui lòng giảm giá trị thuộc tính xuống tối đa 100 biến thể.';
+            tableWrap.hidden = true;
+            setStockMode(false);
+            return;
+        }
+        if (preserveExisting) {
+            existingRows.forEach(row => {
+                let attrs = row.attributes;
+                if (typeof attrs === 'string') { try { attrs = JSON.parse(attrs); } catch (_) { attrs = {}; } }
+                if (attrs && typeof attrs === 'object' && !previous.has(keyFor(attrs))) previous.set(keyFor(attrs), {...row, attributes: attrs});
+            });
+        }
+        combinations.forEach((attrs, index) => {
+            const old = previous.get(keyFor(attrs)) || {};
+            const generatedSku = [skuInput.value.trim(), ...Object.values(attrs).map(slug)].filter(Boolean).join('-');
+            const row = document.createElement('tr');
+            const attributesLabel = Object.entries(attrs).map(([name, value]) => `${name}: ${value}`).join(' / ');
+            row.innerHTML = `<td><strong>${esc(attributesLabel)}</strong></td>
+                <td><input class="form-control form-control-sm variant-sku" maxlength="100" value="${esc(old.sku || generatedSku)}" required></td>
+                <td><input class="form-control form-control-sm variant-price" type="number" min="0" step="1" placeholder="Dùng giá chung" value="${esc(old.price ?? '')}"></td>
+                <td><input class="form-control form-control-sm variant-stock" type="number" min="0" max="2147483647" step="1" value="${esc(old.stock ?? 0)}" required></td>`;
+            const hidden = document.createElement('div');
+            hidden.className = 'variant-hidden-fields';
+            const addHidden = (name, value) => { const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = value; hidden.appendChild(input); };
+            if (old.id) addHidden(`variants[${index}][id]`, old.id);
+            addHidden(`variants[${index}][attributes]`, JSON.stringify(attrs));
+            row.querySelector('.variant-sku').name = `variants[${index}][sku]`;
+            row.querySelector('.variant-price').name = `variants[${index}][price]`;
+            row.querySelector('.variant-stock').name = `variants[${index}][stock]`;
+            row.querySelector('td').appendChild(hidden);
+            tableBody.appendChild(row);
+        });
+        tableWrap.hidden = false;
+        alertBox.textContent = 'Đã tạo ' + combinations.length + ' biến thể. Tồn kho sản phẩm sẽ bằng tổng tồn kho của các biến thể.';
+        setStockMode(true);
+    };
+
+    document.getElementById('add-attribute').addEventListener('click', () => addGroup());
+    document.getElementById('generate-variants').addEventListener('click', () => renderVariants(true));
+    groupContainer.addEventListener('click', event => {
+        const button = event.target.closest('.remove-attribute');
+        if (button) button.closest('.attribute-group').remove();
+    });
+    skuInput.addEventListener('change', () => {
+        // Keep manually adjusted SKUs intact; new combinations get a fresh generated code.
+    });
+    form.addEventListener('submit', event => {
+        const hasAttributes = currentGroups().length > 0;
+        renderVariants(true);
+        if (hasAttributes && tableWrap.hidden) {
+            event.preventDefault();
+            alert('Vui lòng kiểm tra lại các thuộc tính và tổ hợp biến thể.');
+        }
+    });
+
+    // Restore edit/validation state and construct the variant table on first load.
+    if (currentGroups().length) renderVariants(true);
+
+    const imageInput = document.getElementById('hinh_anh');
+    if (imageInput) {
+        imageInput.addEventListener('change', function () {
+            const label = imageInput.nextElementSibling;
+            const count = imageInput.files.length;
+            label.textContent = count === 0 ? 'Chọn một hoặc nhiều ảnh' : (count === 1 ? imageInput.files[0].name : count + ' ảnh đã chọn');
+        });
+    }
+})();
 </script>
 @endsection

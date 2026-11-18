@@ -63,10 +63,14 @@
         <div class="row align-items-center">
             <div class="col-md-4">
                 <h3 class="card-title"><i class="fas fa-exchange-alt text-primary mr-2"></i>Danh sách yêu cầu</h3>
-                <div class="small text-muted mt-1"></div>
+                <div class="small text-muted mt-1">Tạo phiếu thủ công hoặc theo dõi yêu cầu từ CSKH.</div>
             </div>
             <div class="col-md-8 mt-3 mt-md-0">
-                <form method="GET" action="{{ route('admin.returns.index') }}" class="d-flex flex-wrap justify-content-md-end">
+                <div class="d-flex flex-wrap justify-content-md-end">
+                    <a href="{{ route('admin.returns.create') }}" class="btn btn-primary btn-sm mb-1 mr-2">
+                        <i class="fas fa-plus mr-1"></i>Tạo phiếu đổi / trả
+                    </a>
+                    <form method="GET" action="{{ route('admin.returns.index') }}" class="d-flex flex-wrap justify-content-md-end">
                     <div class="input-group input-group-sm mr-2 mb-1" style="max-width: 230px">
                         <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Mã đơn, khách hàng..." aria-label="Tìm yêu cầu">
                         <div class="input-group-append"><button class="btn btn-default" type="submit" aria-label="Tìm"><i class="fas fa-search"></i></button></div>
@@ -83,7 +87,8 @@
                         @endforeach
                     </select>
                     <a href="{{ route('admin.returns.index') }}" class="btn btn-default btn-sm mb-1" title="Xóa bộ lọc"><i class="fas fa-undo"></i></a>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -98,7 +103,7 @@
                         <th>Loại yêu cầu</th>
                         <th>Ngày gửi</th>
                         <th>Trạng thái</th>
-                        <th class="text-right pr-3">Chi tiết</th>
+                        <th class="text-right pr-3 text-nowrap">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -135,7 +140,14 @@
                             </span>
                         </td>
                         <td class="text-right pr-3">
+                            @if ($returnRequest->conversation_id)
+                            <a href="{{ route('admin.support-chat.index', ['conversation_id' => $returnRequest->conversation_id]) }}"
+                                class="btn btn-default btn-sm text-info" aria-label="Mở hội thoại CSKH"><i class="fas fa-comments"></i></a>
+                            @endif
                             <a href="{{ route('admin.returns.show', $returnRequest->id) }}" class="btn btn-default btn-sm text-primary" aria-label="Xem yêu cầu"><i class="far fa-eye"></i> Xem</a>
+                            @if (\App\Models\ReturnRequest::allowedStatuses((int) $returnRequest->trang_thai, (int) $returnRequest->loai_yeu_cau) !== [])
+                            <a href="{{ route('admin.returns.edit', $returnRequest->id) }}" class="btn btn-default btn-sm text-warning" aria-label="Xử lý yêu cầu"><i class="fas fa-edit"></i> Sửa</a>
+                            @endif
                         </td>
                     </tr>
                     @empty

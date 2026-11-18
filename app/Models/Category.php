@@ -36,4 +36,9 @@ class Category extends Model
     {
         return $this->hasMany(self::class, 'danh_muc_cha_id');
     }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class, 'danh_muc_id');
+    }
 }

@@ -118,7 +118,7 @@
                                 @endif
                                 <div>
                                     <div class="font-weight-bold text-dark">{{ $product->ten_san_pham }}</div>
-                                    <small class="text-muted">Mã: {{ $product->ma_san_pham }} · {{ $product->images_count }} ảnh</small>
+                                    <small class="text-muted">Mã: {{ $product->ma_san_pham }} · {{ $product->images_count }} ảnh · Tồn kho: {{ number_format($product->so_luong_ton ?? 0) }}</small>
                                     @if ($product->noi_bat)
                                     <span class="badge badge-warning ml-1"><i class="fas fa-star mr-1"></i>Nổi bật</span>
                                     @endif
@@ -127,7 +127,14 @@
                         </td>
                         <td>{{ $product->category?->ten_danh_muc ?? 'Chưa phân loại' }}</td>
                         <td>{{ number_format($product->gia_san_pham, 0, ',', '.') }} ₫</td>
-                        <td>{{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : '—' }}</td>
+                        <td>
+                            @if ($promotionQuotes[$product->id]['promotion'])
+                                <span class="font-weight-bold text-danger">{{ number_format($promotionQuotes[$product->id]['sale_price'], 0, ',', '.') }} ₫</span>
+                                <small class="d-block text-muted">{{ $promotionQuotes[$product->id]['promotion']->ten_chuong_trinh }}</small>
+                            @else
+                                {{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : '—' }}
+                            @endif
+                        </td>
                         <td>
                             @if ($product->trang_thai)
                             <span class="badge badge-success px-2 py-1">Đang kinh doanh</span>
@@ -136,6 +143,7 @@
                             @endif
                         </td>
                         <td class="text-right pr-3 text-nowrap">
+                            <a href="{{ route('admin.products.show', $product) }}" class="btn btn-default btn-sm text-info" aria-label="Chi tiết {{ $product->ten_san_pham }}"><i class="far fa-eye"></i></a>
                             <a href="{{ route('admin.products.edit', $product) }}" class="btn btn-default btn-sm text-primary" aria-label="Chỉnh sửa {{ $product->ten_san_pham }}"><i class="far fa-edit"></i></a>
                             <form method="POST" action="{{ route('admin.products.destroy', $product) }}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa sản phẩm này?')">
                                 @csrf

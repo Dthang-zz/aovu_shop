@@ -8,15 +8,17 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Category::query()->with('parent')->withCount('children');
+        $query = Category::query()
+            ->with('parent')
+            ->withCount(['children', 'products']);
 
         if ($request->filled('q')) {
             $term = trim((string) $request->query('q'));
@@ -36,29 +38,39 @@ class CategoryController extends Controller
             $query->where('danh_muc_cha_id', $request->query('parent_id'));
         }
 
-        $categories = $query
-            ->orderByRaw('CASE WHEN danh_muc_cha_id IS NULL THEN 0 ELSE 1 END')
-            ->orderBy('ten_danh_muc')
-            ->paginate(10)
-            ->withQueryString();
-
-        $productCounts = collect();
-        if (Schema::hasTable('san_phams')) {
-            $productCounts = DB::table('san_phams')
-                ->select('danh_muc_id')
-                ->selectRaw('COUNT(*) as total')
-                ->whereNotNull('danh_muc_id')
-                ->groupBy('danh_muc_id')
-                ->pluck('total', 'danh_muc_id');
-        }
+        $orderedCategories = $this->orderHierarchically(
+            $query->orderBy('ten_danh_muc')->get()
+        );
+        $perPage = 10;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $categories = new LengthAwarePaginator(
+            $orderedCategories->forPage($currentPage, $perPage)->values(),
+            $orderedCategories->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => LengthAwarePaginator::resolveCurrentPath(),
+                'query' => $request->query(),
+            ]
+        );
 
         return view('admin.categories.index', [
             'categories' => $categories,
             'parents' => Category::query()->orderBy('ten_danh_muc')->get(),
-            'productCounts' => $productCounts,
             'totalCount' => Category::count(),
             'activeCount' => Category::where('trang_thai', true)->count(),
             'hiddenCount' => Category::where('trang_thai', false)->count(),
+        ]);
+    }
+
+    public function show(Category $category): View
+    {
+        $category->load('parent')
+            ->loadCount('products')
+            ->load(['children' => fn ($query) => $query->withCount('products')]);
+
+        return view('admin.categories.show', [
+            'category' => $category,
         ]);
     }
 
@@ -100,24 +112,61 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): RedirectResponse
     {
-        if ($category->children()->exists()) {
-            return redirect()
-                ->route('admin.categories.index')
-                ->with('error', 'Không thể xóa danh mục đang có danh mục con.');
-        }
-
-        if (Schema::hasTable('san_phams')
-            && DB::table('san_phams')->where('danh_muc_id', $category->getKey())->exists()) {
+        if ($category->products()->exists()) {
             return redirect()
                 ->route('admin.categories.index')
                 ->with('error', 'Không thể xóa danh mục đang được sản phẩm sử dụng.');
         }
 
-        $category->delete();
+        DB::transaction(function () use ($category): void {
+            $category->children()->update(['danh_muc_cha_id' => null]);
+            $category->delete();
+        });
 
         return redirect()
             ->route('admin.categories.index')
             ->with('success', 'Đã xóa danh mục.');
+    }
+
+    private function orderHierarchically(Collection $categories): Collection
+    {
+        $categoriesById = $categories->keyBy(
+            fn (Category $category): int => (int) $category->getKey()
+        );
+        $childrenByParentId = $categories->groupBy('danh_muc_cha_id');
+        $orderedCategories = new Collection;
+        $visited = [];
+
+        $appendCategory = function (Category $category, int $depth) use (
+            &$appendCategory,
+            &$visited,
+            $childrenByParentId,
+            $orderedCategories
+        ): void {
+            $categoryId = (int) $category->getKey();
+            if (isset($visited[$categoryId])) {
+                return;
+            }
+
+            $visited[$categoryId] = true;
+            $category->setAttribute('hierarchy_depth', $depth);
+            $orderedCategories->push($category);
+
+            $childrenByParentId->get($categoryId, new Collection)
+                ->sortBy('ten_danh_muc')
+                ->each(fn (Category $child) => $appendCategory($child, $depth + 1));
+        };
+
+        $roots = $categories->filter(
+            fn (Category $category): bool => $category->danh_muc_cha_id === null
+                || ! $categoriesById->has($category->danh_muc_cha_id)
+        );
+
+        $roots->sortBy('ten_danh_muc')
+            ->each(fn (Category $category) => $appendCategory($category, 0));
+        $categories->each(fn (Category $category) => $appendCategory($category, 0));
+
+        return $orderedCategories;
     }
 
     /**
@@ -146,7 +195,7 @@ class CategoryController extends Controller
         ]);
 
         $validator->after(function ($validator) use ($request, $category) {
-            if (!$category || !$request->filled('danh_muc_cha_id')) {
+            if (! $category || ! $request->filled('danh_muc_cha_id')) {
                 return;
             }
 
@@ -168,7 +217,7 @@ class CategoryController extends Controller
     {
         $visited = [];
 
-        while ($parentId !== 0 && !isset($visited[$parentId])) {
+        while ($parentId !== 0 && ! isset($visited[$parentId])) {
             if ($parentId === $categoryId) {
                 return true;
             }

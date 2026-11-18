@@ -77,7 +77,7 @@
             <div class="card-header"><h3 class="card-title"><i class="far fa-lightbulb text-warning mr-2"></i>Lưu ý</h3></div>
             <div class="card-body">
                 <p class="text-muted">Danh mục có thể được tổ chức theo nhiều cấp bằng cách chọn danh mục cha.</p>
-                <p class="text-muted mb-0">Không thể xóa danh mục đang có danh mục con hoặc đang được sản phẩm sử dụng. Hãy chuyển hoặc gỡ các sản phẩm liên quan trước.</p>
+                <p class="text-muted mb-0">Khi xóa danh mục cha, danh mục con sẽ được chuyển thành danh mục gốc. Không thể xóa danh mục đang được sản phẩm sử dụng.</p>
             </div>
         </div>
     </div>

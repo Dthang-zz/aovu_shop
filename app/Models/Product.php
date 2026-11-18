@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
@@ -17,14 +18,13 @@ class Product extends Model
         'ten_san_pham',
         'gia_san_pham',
         'gia_khuyen_mai',
+        'so_luong_ton',
         'hinh_anh',
         'mo_ta',
         'chat_lieu',
         'huong_dan_su_dung',
         'noi_bat',
         'ngay_nhap',
-        'khuyen_mai_bat_dau',
-        'khuyen_mai_ket_thuc',
         'danh_muc_id',
         'trang_thai',
     ];
@@ -34,10 +34,9 @@ class Product extends Model
         return [
             'gia_san_pham' => 'integer',
             'gia_khuyen_mai' => 'integer',
+            'so_luong_ton' => 'integer',
             'noi_bat' => 'boolean',
             'ngay_nhap' => 'datetime',
-            'khuyen_mai_bat_dau' => 'datetime',
-            'khuyen_mai_ket_thuc' => 'datetime',
             'danh_muc_id' => 'integer',
             'trang_thai' => 'boolean',
         ];
@@ -52,8 +51,14 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class, 'san_pham_id')->orderBy('thu_tu');
     }
+
     public function variants(): HasMany
     {
-        return $this->hasMany(ProductVariant::class, 'product_id', 'id');
+        return $this->hasMany(ProductVariant::class, 'product_id')->orderBy('id');
+    }
+
+    public function promotions(): BelongsToMany
+    {
+        return $this->belongsToMany(Promotion::class, 'promotion_products', 'product_id', 'promotion_id');
     }
 }
