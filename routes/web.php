@@ -13,7 +13,7 @@ use App\Http\Controllers\Admin\ReturnRequestController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\VariantController;
+use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\SupportChatController;
@@ -33,6 +33,12 @@ Route::get('/cart', [StorefrontController::class, 'cart'])->name('shop.cart');
 Route::patch('/cart/items/{item}', [StorefrontController::class, 'updateCart'])->name('shop.cart.items.update');
 Route::delete('/cart/items/{item}', [StorefrontController::class, 'removeFromCart'])->name('shop.cart.items.destroy');
 Route::get('/checkout', [StorefrontController::class, 'checkout'])->name('shop.checkout');
+Route::post('/checkout/voucher', [StorefrontController::class, 'applyVoucher'])
+    ->middleware('throttle:20,1')
+    ->name('shop.checkout.voucher.apply');
+Route::post('/checkout/voucher/remove', [StorefrontController::class, 'removeVoucher'])
+    ->middleware('throttle:20,1')
+    ->name('shop.checkout.voucher.remove');
 Route::post('/checkout', [StorefrontController::class, 'placeOrder'])->name('shop.checkout.store');
 Route::get('/checkout/success', [StorefrontController::class, 'orderConfirmation'])->name('shop.checkout.success');
 
@@ -94,16 +100,6 @@ Route::resource('/admin/products', ProductController::class)
         'destroy' => 'admin.products.destroy',
     ]);
 
-// Quản lý thuộc tính & biến thể (Dùng Controller và Database thật)
-// Quản lý Thuộc tính & Biến thể (Đầy đủ CRUD)
-Route::get('/admin/variants', [VariantController::class, 'index'])->name('admin.variants.index');
-Route::get('/admin/variants/create', [VariantController::class, 'create'])->name('admin.variants.create');
-Route::post('/admin/variants', [VariantController::class, 'store'])->name('admin.variants.store');
-Route::get('/admin/variants/{variant}', [VariantController::class, 'show'])->name('admin.variants.show');
-Route::get('/admin/variants/{variant}/edit', [VariantController::class, 'edit'])->name('admin.variants.edit');
-Route::put('/admin/variants/{variant}', [VariantController::class, 'update'])->name('admin.variants.update');
-Route::delete('/admin/variants/{variant}', [VariantController::class, 'destroy'])->name('admin.variants.destroy');
-
 // Quản lý đơn hàng
 Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orders.index');
 Route::get('/admin/orders/{order}', [OrderController::class, 'show'])
@@ -117,22 +113,31 @@ Route::put('/admin/orders/{order}', [OrderController::class, 'update'])
     ->name('admin.orders.update');
 
 // Quản lý người dùng
-Route::resource('/admin/users', UserController::class)
-    ->names('admin.users');
+Route::resource('/admin/users', UserController::class)->names('admin.users');
 Route::patch('/admin/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
+    ->whereNumber('user')
     ->name('admin.users.toggle-status');
 
-Route::resource('/admin/promotions', PromotionController::class)
-    ->names('admin.promotions');
+// Khuyến mãi tự động
+Route::resource('/admin/promotions', PromotionController::class)->names('admin.promotions');
 
-Route::resource('/admin/banners', BannerController::class)
-    ->names('admin.banners');
+// Mã giảm giá (Voucher): khai báo route tĩnh trước resource để tránh xung đột {voucher}.
+Route::get('/admin/vouchers/export', [VoucherController::class, 'export'])
+    ->name('admin.vouchers.export');
+Route::delete('/admin/vouchers/bulk-destroy', [VoucherController::class, 'bulkDestroy'])
+    ->name('admin.vouchers.bulk-destroy');
+Route::patch('/admin/vouchers/{voucher}/toggle', [VoucherController::class, 'toggleStatus'])
+    ->whereNumber('voucher')
+    ->name('admin.vouchers.toggle');
+Route::resource('/admin/vouchers', VoucherController::class)
+    ->except(['show'])
+    ->names('admin.vouchers');
+
+Route::resource('/admin/banners', BannerController::class)->names('admin.banners');
 
 // Quản lý đổi trả
-Route::get('/admin/returns', [ReturnRequestController::class, 'index'])
-    ->name('admin.returns.index');
-Route::get('/admin/returns/create', [ReturnRequestController::class, 'create'])
-    ->name('admin.returns.create');
+Route::get('/admin/returns', [ReturnRequestController::class, 'index'])->name('admin.returns.index');
+Route::get('/admin/returns/create', [ReturnRequestController::class, 'create'])->name('admin.returns.create');
 Route::post('/admin/returns', [ReturnRequestController::class, 'store'])
     ->middleware('throttle:20,1')
     ->name('admin.returns.store');

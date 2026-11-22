@@ -18,6 +18,7 @@ class Product extends Model
         'ten_san_pham',
         'gia_san_pham',
         'gia_khuyen_mai',
+        'so_luong_ton',
         'hinh_anh',
         'mo_ta',
         'chat_lieu',
@@ -33,6 +34,7 @@ class Product extends Model
         return [
             'gia_san_pham' => 'integer',
             'gia_khuyen_mai' => 'integer',
+            'so_luong_ton' => 'integer',
             'noi_bat' => 'boolean',
             'ngay_nhap' => 'datetime',
             'danh_muc_id' => 'integer',
@@ -52,7 +54,7 @@ class Product extends Model
 
     public function variants(): HasMany
     {
-        return $this->hasMany(ProductVariant::class, 'product_id', 'id');
+        return $this->hasMany(ProductVariant::class, 'product_id')->orderBy('id');
     }
 
     public function promotions(): BelongsToMany

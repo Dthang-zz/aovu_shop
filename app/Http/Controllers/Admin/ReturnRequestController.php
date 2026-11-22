@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ReturnRequest as ReturnRequestModel;
 use App\Models\ReturnRequestHistory;
@@ -82,14 +83,13 @@ class ReturnRequestController extends Controller
     public function edit(int $returnRequest): View
     {
         $returnRequest = $this->findRequestForDisplay($returnRequest);
-        $returnRequest->replacement_variants = (int) $returnRequest->loai_yeu_cau === ReturnRequestModel::TYPE_EXCHANGE
-            ? ProductVariant::query()
-                ->with('product:id,ten_san_pham,gia_san_pham')
-                ->where('status', ProductVariant::STATUS_ACTIVE)
-                ->where('stock', '>', 0)
-                ->orderBy('product_id')
-                ->orderBy('sku')
-                ->get()
+        $isExchange = (int) $returnRequest->loai_yeu_cau === ReturnRequestModel::TYPE_EXCHANGE;
+        $returnRequest->replacement_products = $isExchange
+            ? Product::query()->where('trang_thai', true)->where('so_luong_ton', '>', 0)
+                ->orderBy('ten_san_pham')->get(['id', 'ma_san_pham', 'ten_san_pham', 'gia_san_pham', 'so_luong_ton'])
+            : collect();
+        $returnRequest->replacement_variants = $isExchange
+            ? ProductVariant::query()->with('product')->where('status', 'active')->where('stock', '>', 0)->get()
             : collect();
 
         return view('admin.returns.edit', compact('returnRequest'));
@@ -133,6 +133,7 @@ class ReturnRequestController extends Controller
             'policy_notes' => ['nullable', 'string', 'max:2000'],
             'collection_waived' => ['nullable', 'boolean'],
             'inspection_notes' => ['nullable', 'string', 'max:2000'],
+            'replacement_product_id' => ['nullable', 'integer', 'exists:san_phams,id'],
             'replacement_variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'price_difference_settled' => ['nullable', 'boolean'],
             'price_difference_note' => ['nullable', 'string', 'max:255'],
@@ -222,10 +223,10 @@ class ReturnRequestController extends Controller
                 ]);
             }
 
-            if (isset($data['replacement_variant_id'])
+            if ((isset($data['replacement_product_id']) || isset($data['replacement_variant_id']))
                 && (int) $record->loai_yeu_cau !== ReturnRequestModel::TYPE_EXCHANGE) {
                 throw ValidationException::withMessages([
-                    'replacement_variant_id' => 'Chỉ phiếu đổi hàng mới được chọn sản phẩm thay thế.',
+                    'replacement_product_id' => 'Chỉ phiếu đổi hàng mới được chọn sản phẩm thay thế.',
                 ]);
             }
 
@@ -245,19 +246,44 @@ class ReturnRequestController extends Controller
                     $data['price_difference_note'] ?? $workflow->price_difference_note ?? ''
                 )) ?: null,
                 'tracking_code' => trim((string) ($data['tracking_code'] ?? $workflow->tracking_code ?? '')) ?: null,
+                'replacement_product_id' => $workflow->replacement_product_id,
+                'replacement_variant_id' => $workflow->replacement_variant_id,
             ];
 
-            if (isset($data['replacement_variant_id'])) {
-                $replacement = ProductVariant::query()
-                    ->with('product:id,ten_san_pham,gia_san_pham')
-                    ->whereKey($data['replacement_variant_id'])
-                    ->where('status', ProductVariant::STATUS_ACTIVE)
+            if (isset($data['replacement_product_id'])) {
+                $replacement = Product::query()
+                    ->whereKey($data['replacement_product_id'])
+                    ->where('trang_thai', true)
                     ->lockForUpdate()
                     ->first();
 
                 if ($replacement === null) {
                     throw ValidationException::withMessages([
-                        'replacement_variant_id' => 'Sản phẩm thay thế không tồn tại hoặc đã ngừng bán.',
+                        'replacement_product_id' => 'Sản phẩm thay thế không tồn tại hoặc đã ngừng kinh doanh.',
+                    ]);
+                }
+
+                $replacementVariant = null;
+                $hasVariants = $replacement->variants()->where('status', 'active')->exists();
+                if ($hasVariants) {
+                    if (empty($data['replacement_variant_id'])) {
+                        throw ValidationException::withMessages([
+                            'replacement_variant_id' => 'Vui lòng chọn màu sắc/kích thước cho sản phẩm thay thế.',
+                        ]);
+                    }
+                    $replacementVariant = ProductVariant::query()
+                        ->where('product_id', $replacement->id)
+                        ->where('status', 'active')
+                        ->lockForUpdate()
+                        ->find($data['replacement_variant_id']);
+                    if ($replacementVariant === null) {
+                        throw ValidationException::withMessages([
+                            'replacement_variant_id' => 'Phân loại thay thế không hợp lệ hoặc đã hết kinh doanh.',
+                        ]);
+                    }
+                } elseif (! empty($data['replacement_variant_id'])) {
+                    throw ValidationException::withMessages([
+                        'replacement_variant_id' => 'Sản phẩm thay thế này không có biến thể.',
                     ]);
                 }
 
@@ -265,14 +291,18 @@ class ReturnRequestController extends Controller
                     ->where('id', $record->chi_tiet_don_hang_id)
                     ->first(['don_gia']);
                 $originalUnitPrice = (int) ($originalItem->don_gia ?? 0);
-                $replacementUnitPrice = (int) round((float) ($replacement->price ?? $replacement->product?->gia_san_pham ?? 0));
+                $replacementUnitPrice = $replacementVariant && $replacementVariant->price !== null
+                    ? (int) $replacementVariant->price
+                    : (int) round((float) $replacement->gia_san_pham);
                 $quantity = (int) ($record->so_luong ?? 0);
-                $variantLabel = collect([$replacement->color, $replacement->size])->filter()->implode(' / ');
-                $workflowChanges['replacement_variant_id'] = $replacement->id;
+                $variantLabel = collect($replacementVariant?->attribute_values ?? [])->map(
+                    fn ($value, $name) => $name.': '.$value
+                )->implode(' / ');
+                $workflowChanges['replacement_product_id'] = $replacement->id;
+                $workflowChanges['replacement_variant_id'] = $replacementVariant?->id;
                 $workflowChanges['replacement_name'] = trim(
-                    ($replacement->product?->ten_san_pham ?: 'Sản phẩm')
-                    .' · '.$replacement->sku
-                    .($variantLabel !== '' ? ' ('.$variantLabel.')' : '')
+                    $replacement->ten_san_pham.' · '.$replacement->ma_san_pham
+                    .($variantLabel !== '' ? ' · '.$variantLabel : '')
                 );
                 $workflowChanges['replacement_price'] = $replacementUnitPrice;
                 $workflowChanges['price_difference'] = ($replacementUnitPrice - $originalUnitPrice) * $quantity;
@@ -283,25 +313,55 @@ class ReturnRequestController extends Controller
             }
 
             if ($targetStatus === ReturnRequestModel::STATUS_EXCHANGE_SHIPPED) {
-                if (! $workflow->replacement_variant_id && empty($workflowChanges['replacement_variant_id'])) {
+                $replacementProductId = $workflowChanges['replacement_product_id']
+                    ?? $workflow->replacement_product_id;
+
+                if (! $replacementProductId) {
                     throw ValidationException::withMessages([
-                        'replacement_variant_id' => 'Vui lòng chọn sản phẩm thay thế trước khi gửi hàng.',
+                        'replacement_product_id' => 'Vui lòng chọn sản phẩm thay thế trước khi gửi hàng.',
                     ]);
                 }
 
-                $replacementVariantId = $workflowChanges['replacement_variant_id']
-                    ?? $workflow->replacement_variant_id;
-                $replacement = ProductVariant::query()
-                    ->whereKey($replacementVariantId)
-                    ->where('status', ProductVariant::STATUS_ACTIVE)
-                    ->lockForUpdate()
-                    ->first(['id', 'stock']);
                 $quantity = (int) ($record->so_luong ?? 0);
+                $replacementVariantId = $workflowChanges['replacement_variant_id'] ?? null;
+                if ($replacementProductId) {
+                    $replacement = Product::query()
+                        ->whereKey($replacementProductId)
+                        ->where('trang_thai', true)
+                        ->lockForUpdate()
+                        ->first(['id', 'so_luong_ton']);
 
-                if ($replacement === null || (int) $replacement->stock < $quantity) {
-                    throw ValidationException::withMessages([
-                        'replacement_variant_id' => 'Tồn kho sản phẩm thay thế không đủ số lượng.',
-                    ]);
+                    if ($replacement === null) {
+                        throw ValidationException::withMessages(['replacement_product_id' => 'Sản phẩm thay thế không còn kinh doanh.']);
+                    }
+
+                    $activeVariantsExist = ProductVariant::query()->where('product_id', $replacementProductId)->where('status', 'active')->exists();
+                    if ($activeVariantsExist && ! $replacementVariantId) {
+                        throw ValidationException::withMessages(['replacement_variant_id' => 'Vui lòng chọn phân loại sản phẩm thay thế.']);
+                    }
+
+                    if ($replacementVariantId) {
+                        $replacementVariant = ProductVariant::query()
+                            ->where('product_id', $replacementProductId)
+                            ->where('status', 'active')
+                            ->where('stock', '>=', $quantity)
+                            ->lockForUpdate()
+                            ->find($replacementVariantId);
+                        if ($replacementVariant === null) {
+                            throw ValidationException::withMessages(['replacement_variant_id' => 'Tồn kho phân loại thay thế không đủ số lượng.']);
+                        }
+                        $replacementVariant->decrement('stock', $quantity);
+                    } elseif ((int) $replacement->so_luong_ton < $quantity) {
+                        throw ValidationException::withMessages(['replacement_product_id' => 'Tồn kho sản phẩm thay thế không đủ số lượng.']);
+                    }
+
+                    $productStockUpdated = Product::query()
+                        ->whereKey($replacementProductId)
+                        ->where('so_luong_ton', '>=', $quantity)
+                        ->decrement('so_luong_ton', $quantity);
+                    if ($productStockUpdated === 0) {
+                        throw ValidationException::withMessages(['replacement_product_id' => 'Tồn kho tổng của sản phẩm thay thế không đủ.']);
+                    }
                 }
 
                 $trackingCode = $workflowChanges['tracking_code'];
@@ -319,11 +379,6 @@ class ReturnRequestController extends Controller
                         'price_difference_settled' => 'Cần xác nhận và ghi chú việc xử lý chênh lệch giá.',
                     ]);
                 }
-
-                ProductVariant::query()
-                    ->whereKey($replacementVariantId)
-                    ->where('stock', '>=', $quantity)
-                    ->decrement('stock', $quantity);
             }
 
             if ($targetStatus === ReturnRequestModel::STATUS_INSPECTED
@@ -541,25 +596,27 @@ class ReturnRequestController extends Controller
     }
 
     /**
-     * Put the units the customer sent back into the stock of the variant they originally bought.
+     * Put returned units back into the stock of the product originally purchased.
      */
     private function restockReturnedItem(ReturnRequestModel $record): bool
     {
-        if (! Schema::hasColumn('chi_tiet_don_hangs', 'product_variant_id')) {
-            return false;
-        }
-
-        $variantId = DB::table('chi_tiet_don_hangs')
+        $item = DB::table('chi_tiet_don_hangs')
             ->where('id', $record->chi_tiet_don_hang_id)
-            ->value('product_variant_id');
-
-        if ($variantId === null) {
+            ->first();
+        if ($item === null || empty($item->san_pham_id)) {
             return false;
         }
 
-        return ProductVariant::query()
-            ->whereKey($variantId)
-            ->increment('stock', (int) $record->so_luong) > 0;
+        if (Schema::hasColumn('chi_tiet_don_hangs', 'product_variant_id')
+            && ! empty($item->product_variant_id) && Schema::hasTable('product_variants')) {
+            DB::table('product_variants')
+                ->where('id', $item->product_variant_id)
+                ->increment('stock', (int) $record->so_luong);
+        }
+
+        return DB::table('san_phams')
+            ->where('id', $item->san_pham_id)
+            ->increment('so_luong_ton', (int) $record->so_luong) > 0;
     }
 
     private function requestQuery()

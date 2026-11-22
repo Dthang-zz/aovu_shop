@@ -57,7 +57,6 @@ class DashboardController extends Controller
         $accountsAvailable = Schema::hasTable('tai_khoans');
         $orderItemsAvailable = Schema::hasTable('chi_tiet_don_hangs');
         $productsAvailable = Schema::hasTable('san_phams');
-        $variantsAvailable = Schema::hasTable('bien_thes');
         $periodOrders = fn (): Builder => DB::table('don_hangs')->whereBetween('ngay_dat', [$start, $periodEnd]);
         $todayRevenue = $ordersAvailable
             ? (float) DB::table('don_hangs')
@@ -174,38 +173,38 @@ class DashboardController extends Controller
 
         $topSellers = collect();
         $slowProducts = collect();
-        if ($orderItemsAvailable && $ordersAvailable && $productsAvailable && $variantsAvailable) {
+        $orderLinesHaveProduct = $orderItemsAvailable && Schema::hasColumn('chi_tiet_don_hangs', 'san_pham_id');
+        if ($orderLinesHaveProduct && $ordersAvailable && $productsAvailable) {
             $sales = DB::table('chi_tiet_don_hangs as items')
                 ->join('don_hangs as orders', 'orders.id', '=', 'items.don_hang_id')
-                ->join('bien_thes as variants', 'variants.id', '=', 'items.bien_the_id')
-                ->select('variants.san_pham_id')
+                ->whereNotNull('items.san_pham_id')
+                ->select('items.san_pham_id')
                 ->selectRaw('SUM(COALESCE(items.so_luong, 0)) as quantity_sold')
                 ->whereBetween('orders.ngay_dat', [$start, $periodEnd])
                 ->where(function (Builder $query): void {
                     $query->whereNull('orders.trang_thai')
                         ->orWhere('orders.trang_thai', '!=', Order::STATUS_CANCELLED);
                 })
-                ->groupBy('variants.san_pham_id');
+                ->groupBy('items.san_pham_id');
 
             $topSellers = DB::table('chi_tiet_don_hangs as items')
                 ->join('don_hangs as orders', 'orders.id', '=', 'items.don_hang_id')
-                ->join('bien_thes as variants', 'variants.id', '=', 'items.bien_the_id')
-                ->join('san_phams as products', 'products.id', '=', 'variants.san_pham_id')
+                ->join('san_phams as products', 'products.id', '=', 'items.san_pham_id')
                 ->select([
                     'products.id',
                     'products.ten_san_pham',
                     'products.hinh_anh',
                     'products.gia_san_pham',
                     'products.gia_khuyen_mai',
+                    'products.so_luong_ton as stock',
                 ])
                 ->selectRaw('SUM(COALESCE(items.so_luong, 0)) as quantity_sold')
-                ->selectRaw('(SELECT COALESCE(SUM(stock_variants.so_luong_ton), 0) FROM bien_thes AS stock_variants WHERE stock_variants.san_pham_id = products.id) as stock')
                 ->whereBetween('orders.ngay_dat', [$start, $periodEnd])
                 ->where(function (Builder $query): void {
                     $query->whereNull('orders.trang_thai')
                         ->orWhere('orders.trang_thai', '!=', Order::STATUS_CANCELLED);
                 })
-                ->groupBy('products.id', 'products.ten_san_pham', 'products.hinh_anh', 'products.gia_san_pham', 'products.gia_khuyen_mai')
+                ->groupBy('products.id', 'products.ten_san_pham', 'products.hinh_anh', 'products.gia_san_pham', 'products.gia_khuyen_mai', 'products.so_luong_ton')
                 ->orderByDesc('quantity_sold')
                 ->limit(5)
                 ->get();
@@ -226,10 +225,9 @@ class DashboardController extends Controller
 
         $categoryRevenue = collect();
         if (
-            $orderItemsAvailable
+            $orderLinesHaveProduct
             && $ordersAvailable
             && $productsAvailable
-            && $variantsAvailable
             && Schema::hasTable('danh_mucs')
             && Schema::hasColumn('chi_tiet_don_hangs', 'don_gia')
         ) {
@@ -238,8 +236,7 @@ class DashboardController extends Controller
                 : 'COALESCE(items.so_luong, 0) * COALESCE(items.don_gia, 0)';
             $categoryRevenue = DB::table('chi_tiet_don_hangs as items')
                 ->join('don_hangs as orders', 'orders.id', '=', 'items.don_hang_id')
-                ->join('bien_thes as variants', 'variants.id', '=', 'items.bien_the_id')
-                ->join('san_phams as products', 'products.id', '=', 'variants.san_pham_id')
+                ->join('san_phams as products', 'products.id', '=', 'items.san_pham_id')
                 ->leftJoin('danh_mucs as categories', 'categories.id', '=', 'products.danh_muc_id')
                 ->selectRaw("COALESCE(categories.ten_danh_muc, 'Chưa phân loại') as category_name")
                 ->selectRaw("SUM({$categoryRevenueExpression}) as revenue")

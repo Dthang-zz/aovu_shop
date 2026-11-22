@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Order;
-use App\Models\ProductVariant;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +49,7 @@ class OrderManagementTest extends TestCase
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->unsignedBigInteger('product_variant_id')->nullable();
             $table->string('ten_san_pham')->nullable();
             $table->decimal('don_gia', 12, 0)->nullable();
@@ -284,20 +284,14 @@ class OrderManagementTest extends TestCase
         ]);
     }
 
-    public function test_cancelling_an_order_returns_variant_stock(): void
+    public function test_cancelling_an_order_returns_product_stock(): void
     {
         DB::table('danh_mucs')->insert(['id' => 1, 'ten_danh_muc' => 'Áo']);
         DB::table('san_phams')->insert(['id' => 10, 'ma_san_pham' => 'SP-10', 'ten_san_pham' => 'Áo Linen', 'danh_muc_id' => 1]);
-        $variant = ProductVariant::query()->create([
-            'product_id' => 10,
-            'sku' => 'LINEN-M',
-            'price' => 250000,
-            'stock' => 3,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
+        DB::table('san_phams')->where('id', 10)->update(['so_luong_ton' => 3]);
         $orderId = $this->createOrder(['trang_thai' => Order::STATUS_PROCESSING]);
         DB::table('chi_tiet_don_hangs')->insert([
-            ['don_hang_id' => $orderId, 'product_variant_id' => $variant->id, 'ten_san_pham' => 'Áo Linen (M)', 'don_gia' => 250000, 'so_luong' => 2, 'thanh_tien' => 500000],
+            ['don_hang_id' => $orderId, 'san_pham_id' => 10, 'product_variant_id' => null, 'ten_san_pham' => 'Áo Linen', 'don_gia' => 250000, 'so_luong' => 2, 'thanh_tien' => 500000],
             ['don_hang_id' => $orderId, 'product_variant_id' => null, 'ten_san_pham' => 'Tất', 'don_gia' => 30000, 'so_luong' => 1, 'thanh_tien' => 30000],
         ]);
 
@@ -306,7 +300,7 @@ class OrderManagementTest extends TestCase
         ])->assertRedirect(route('admin.orders.show', $orderId));
 
         $this->assertDatabaseHas('don_hangs', ['id' => $orderId, 'trang_thai' => Order::STATUS_CANCELLED]);
-        $this->assertSame(5, $variant->fresh()->stock);
+        $this->assertDatabaseHas('san_phams', ['id' => 10, 'so_luong_ton' => 5]);
     }
 
     private function createOrder(array $attributes = []): int

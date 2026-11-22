@@ -2,55 +2,35 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductVariant extends Model
 {
-    use HasFactory;
-
-    public const STATUS_ACTIVE = 'active';
-
-    public const STATUS_INACTIVE = 'inactive';
-
-    public const STATUS_OUT_OF_STOCK = 'out_of_stock';
-
     protected $table = 'product_variants';
 
     protected $fillable = [
-        'product_id',
-        'sku',
-        'color',
-        'size',
-        'price',
-        'stock',
-        'status',
+        'product_id', 'sku', 'color', 'size', 'price', 'stock', 'status', 'attribute_values',
     ];
 
     protected function casts(): array
     {
         return [
             'product_id' => 'integer',
-            'price' => 'decimal:2',
+            'price' => 'integer',
             'stock' => 'integer',
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public static function statuses(): array
-    {
-        return [
-            self::STATUS_ACTIVE => 'Đang bán',
-            self::STATUS_INACTIVE => 'Tạm ngừng bán',
-            self::STATUS_OUT_OF_STOCK => 'Hết hàng',
+            'attribute_values' => 'array',
         ];
     }
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function getAttributeLabelAttribute(): string
+    {
+        $attributes = $this->attribute_values ?? [];
+        return collect($attributes)->map(fn ($value, $name) => $name . ': ' . $value)->implode(' / ');
     }
 }

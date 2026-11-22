@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\ProductVariant;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +55,7 @@ class StorefrontCheckoutTest extends TestCase
         Schema::create('chi_tiet_don_hangs', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('don_hang_id')->nullable();
+            $table->unsignedInteger('san_pham_id')->nullable();
             $table->unsignedInteger('bien_the_id')->nullable();
             $table->unsignedBigInteger('product_variant_id')->nullable();
             $table->string('ten_san_pham')->nullable();
@@ -104,14 +104,7 @@ class StorefrontCheckoutTest extends TestCase
     public function test_customer_checkout_recalculates_campaign_and_voucher_and_stores_price_snapshots(): void
     {
         $product = $this->createProduct('STORE-002');
-        $variant = $product->variants()->create([
-            'sku' => 'STORE-002-BL-M',
-            'color' => 'Xanh',
-            'size' => 'M',
-            'price' => 500000,
-            'stock' => 5,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
+        $product->update(['so_luong_ton' => 5]);
         $promotionId = $this->createPromotion($product, 20);
         DB::table('vouchers')->insert([
             'ma_voucher' => 'SAVE10',
@@ -127,7 +120,7 @@ class StorefrontCheckoutTest extends TestCase
         ]);
 
         $this->withSession(['storefront_cart' => [
-            $variant->id => ['product_id' => $product->id, 'variant_id' => $variant->id, 'quantity' => 2],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 2],
         ]])->post(route('shop.checkout.store'), [
             'ten_nguoi_nhan' => 'Nguyễn An',
             'email_nguoi_nhan' => 'an@example.test',
@@ -149,9 +142,10 @@ class StorefrontCheckoutTest extends TestCase
         ]);
         $this->assertDatabaseHas('chi_tiet_don_hangs', [
             'don_hang_id' => $order->id,
+            'san_pham_id' => $product->id,
             'bien_the_id' => null,
-            'product_variant_id' => $variant->id,
-            'ten_san_pham' => 'Áo STORE-002 (Xanh / M)',
+            'product_variant_id' => null,
+            'ten_san_pham' => 'Áo STORE-002',
             'don_gia' => 400000,
             'gia_goc' => 500000,
             'so_luong' => 2,
@@ -162,7 +156,7 @@ class StorefrontCheckoutTest extends TestCase
             'phan_tram_giam' => 20,
         ]);
         $this->assertDatabaseHas('vouchers', ['ma_voucher' => 'SAVE10', 'da_su_dung' => 1]);
-        $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'stock' => 3]);
+        $this->assertDatabaseHas('san_phams', ['id' => $product->id, 'so_luong_ton' => 3]);
     }
 
     public function test_checkout_links_order_to_existing_account_with_the_same_email(): void
@@ -174,7 +168,7 @@ class StorefrontCheckoutTest extends TestCase
         ]);
 
         $this->withSession(['storefront_cart' => [
-            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 1],
         ]])->post(route('shop.checkout.store'), $this->checkoutPayload('AN@Example.test'))
             ->assertRedirect(route('shop.checkout.success'));
 
@@ -188,7 +182,7 @@ class StorefrontCheckoutTest extends TestCase
         $customerRoleId = DB::table('chuc_vus')->insertGetId(['ten_chuc_vu' => 'Khách hàng']);
 
         $this->withSession(['storefront_cart' => [
-            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 1],
         ]])->post(route('shop.checkout.store'), $this->checkoutPayload('new@example.test'))
             ->assertRedirect(route('shop.checkout.success'));
 
@@ -235,7 +229,7 @@ class StorefrontCheckoutTest extends TestCase
         ]);
 
         $this->withSession(['storefront_cart' => [
-            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 1],
         ]])->post(route('shop.checkout.store'), [
             'ten_nguoi_nhan' => 'Nguyễn An',
             'email_nguoi_nhan' => 'an@example.test',
@@ -263,7 +257,7 @@ class StorefrontCheckoutTest extends TestCase
         ]);
 
         $this->withSession(['storefront_cart' => [
-            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 1],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 1],
         ]])->post(route('shop.checkout.store'), [
             'ten_nguoi_nhan' => 'Nguyễn An',
             'email_nguoi_nhan' => 'an@example.test',
@@ -276,20 +270,13 @@ class StorefrontCheckoutTest extends TestCase
         $this->assertDatabaseCount('don_hangs', 0);
     }
 
-    public function test_customer_cannot_place_order_when_variant_stock_is_insufficient(): void
+    public function test_customer_cannot_place_order_when_product_stock_is_insufficient(): void
     {
         $product = $this->createProduct('STORE-007');
-        $variant = $product->variants()->create([
-            'sku' => 'STORE-007-BL-M',
-            'color' => 'Xanh',
-            'size' => 'M',
-            'price' => 500000,
-            'stock' => 1,
-            'status' => ProductVariant::STATUS_ACTIVE,
-        ]);
+        $product->update(['so_luong_ton' => 1]);
 
         $this->withSession(['storefront_cart' => [
-            $variant->id => ['product_id' => $product->id, 'variant_id' => $variant->id, 'quantity' => 2],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 2],
         ]])->post(route('shop.checkout.store'), [
             'ten_nguoi_nhan' => 'Nguyễn An',
             'email_nguoi_nhan' => 'an@example.test',
@@ -299,7 +286,7 @@ class StorefrontCheckoutTest extends TestCase
             ->assertSessionHasErrors('cart');
 
         $this->assertDatabaseCount('don_hangs', 0);
-        $this->assertDatabaseHas('product_variants', ['id' => $variant->id, 'stock' => 1]);
+        $this->assertDatabaseHas('san_phams', ['id' => $product->id, 'so_luong_ton' => 1]);
     }
 
     public function test_customer_cannot_checkout_a_cart_over_the_order_amount_limit(): void
@@ -308,7 +295,7 @@ class StorefrontCheckoutTest extends TestCase
         $product->update(['gia_san_pham' => 900000000000]);
 
         $this->withSession(['storefront_cart' => [
-            'product-'.$product->id => ['product_id' => $product->id, 'variant_id' => null, 'quantity' => 2],
+            'product-'.$product->id => ['product_id' => $product->id, 'quantity' => 2],
         ]])->post(route('shop.checkout.store'), [
             'ten_nguoi_nhan' => 'Nguyễn An',
             'email_nguoi_nhan' => 'an@example.test',
@@ -340,6 +327,7 @@ class StorefrontCheckoutTest extends TestCase
             'ten_san_pham' => 'Áo '.$code,
             'gia_san_pham' => 500000,
             'trang_thai' => true,
+            'so_luong_ton' => 1000,
         ]);
     }
 

@@ -50,6 +50,8 @@
                                     {{ $product->gia_khuyen_mai !== null ? number_format($product->gia_khuyen_mai, 0, ',', '.') . ' ₫' : 'Không áp dụng' }}
                                 @endif
                             </dd>
+                            <dt class="col-sm-4">Tồn kho</dt>
+                            <dd class="col-sm-8">{{ number_format($product->so_luong_ton ?? 0) }} sản phẩm</dd>
                             <dt class="col-sm-4">Trạng thái</dt>
                             <dd class="col-sm-8">
                                 @if ($product->trang_thai)
@@ -72,6 +74,34 @@
                             @endif
                         </dl>
                     </div>
+
+                    @if ($product->variants->isNotEmpty())
+                        <hr>
+                        <h5 class="mb-3">Các biến thể và tồn kho</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="thead-light"><tr><th>SKU</th><th>Thuộc tính</th><th>Giá riêng</th><th>Tồn kho</th><th>Trạng thái</th></tr></thead>
+                                <tbody>
+                                    @foreach ($product->variants as $variant)
+                                        <tr>
+                                            <td>{{ $variant->sku }}</td>
+                                            @php
+                                                $variantAttributes = $variant->attribute_values ?? [];
+                                                if ($variantAttributes === []) {
+                                                    if ($variant->color) $variantAttributes['Màu sắc'] = $variant->color;
+                                                    if ($variant->size) $variantAttributes['Kích thước'] = $variant->size;
+                                                }
+                                            @endphp
+                                            <td>{{ collect($variantAttributes)->map(fn ($value, $name) => $name.': '.$value)->implode(' / ') ?: $variant->sku }}</td>
+                                            <td>{{ $variant->price !== null ? number_format($variant->price, 0, ',', '.').' ₫' : 'Dùng giá chung' }}</td>
+                                            <td>{{ number_format($variant->stock) }}</td>
+                                            <td><span class="badge badge-{{ $variant->status === 'active' ? 'success' : 'secondary' }}">{{ $variant->status === 'active' ? 'Đang bán' : 'Ngừng bán' }}</span></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
 
                     @if ($product->images->isNotEmpty())
                         <hr>
@@ -155,37 +185,7 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-layer-group text-primary mr-2"></i>Biến thể ({{ $product->variants->count() }})</h3>
-                </div>
-                <div class="card-body p-0 table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th class="pl-3">SKU / Phân loại</th>
-                                <th>Giá riêng</th>
-                                <th>Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($product->variants as $variant)
-                                <tr>
-                                    <td class="pl-3">
-                                        <code>{{ $variant->sku }}</code>
-                                        <div class="small text-muted">{{ $variant->color ?: 'Mặc định' }} / {{ $variant->size ?: 'Mặc định' }}</div>
-                                        <div class="small text-muted">Tồn kho: {{ number_format($variant->stock) }}</div>
-                                    </td>
-                                    <td>{{ $variant->price !== null ? number_format((float) $variant->price, 0, ',', '.') . ' ₫' : 'Theo giá SP' }}</td>
-                                    <td>{{ $variantStatuses[$variant->status] ?? 'Không xác định' }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="3" class="text-center py-3 text-muted">Sản phẩm chưa có biến thể.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+
         </div>
     </div>
 @endsection

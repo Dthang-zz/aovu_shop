@@ -112,19 +112,39 @@
                             <div class="border rounded p-3 mb-3" data-stage="exchange">
                                 <h6 class="font-weight-bold">Sản phẩm đổi và giao hàng</h6>
                                 <div class="form-group">
-                                    <label for="replacement_variant_id">Sản phẩm thay thế</label>
-                                    <select name="replacement_variant_id" id="replacement_variant_id" class="form-control">
+                                    <label for="replacement_product_id">Sản phẩm thay thế</label>
+                                    <select name="replacement_product_id" id="replacement_product_id" class="form-control">
                                         <option value="">Giữ lựa chọn hiện tại</option>
-                                        @foreach ($returnRequest->replacement_variants as $variant)
-                                            <option value="{{ $variant->id }}"
-                                                @selected((string) old('replacement_variant_id', $returnRequest->workflow?->replacement_variant_id) === (string) $variant->id)>
-                                                {{ $variant->product?->ten_san_pham ?? 'Sản phẩm' }} · {{ $variant->sku }}
-                                                · {{ collect([$variant->color, $variant->size])->filter()->implode(' / ') }}
-                                                · {{ number_format((float) ($variant->price ?? $variant->product?->gia_san_pham ?? 0), 0, ',', '.') }} ₫
-                                                · tồn {{ $variant->stock }}
+                                        @foreach ($returnRequest->replacement_products as $product)
+                                            <option value="{{ $product->id }}"
+                                                @selected((string) old('replacement_product_id', $returnRequest->workflow?->replacement_product_id) === (string) $product->id)>
+                                                {{ $product->ten_san_pham }} · {{ $product->ma_san_pham }}
+                                                · {{ number_format((float) $product->gia_san_pham, 0, ',', '.') }} ₫
+                                                · tồn {{ $product->so_luong_ton }}
                                             </option>
                                         @endforeach
                                     </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="replacement_variant_id">Phân loại thay thế (nếu sản phẩm có biến thể)</label>
+                                    <select name="replacement_variant_id" id="replacement_variant_id" class="form-control">
+                                        <option value="">Chọn phân loại</option>
+                                        @foreach ($returnRequest->replacement_variants as $variant)
+                                            @php
+                                                $variantAttrs = $variant->attribute_values ?? [];
+                                                if ($variantAttrs === []) {
+                                                    if ($variant->color) $variantAttrs['Màu sắc'] = $variant->color;
+                                                    if ($variant->size) $variantAttrs['Kích thước'] = $variant->size;
+                                                }
+                                                $variantLabel = collect($variantAttrs)->map(fn ($value, $name) => $name.': '.$value)->implode(' / ');
+                                            @endphp
+                                            <option value="{{ $variant->id }}" data-product-id="{{ $variant->product_id }}"
+                                                @selected((string) old('replacement_variant_id', $returnRequest->workflow?->replacement_variant_id) === (string) $variant->id)>
+                                                {{ $variant->product?->ten_san_pham }} · {{ $variantLabel ?: $variant->sku }} · tồn {{ $variant->stock }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <small class="form-text text-muted">Chọn đúng màu sắc/kích thước để trừ kho chính xác.</small>
                                 </div>
                                 <div class="custom-control custom-checkbox mb-2">
                                     <input type="hidden" name="price_difference_settled" value="0">
@@ -185,6 +205,20 @@
             var approval = document.querySelector('[data-stage="approval"]');
             var inspection = document.querySelector('[data-stage="inspection"]');
             var exchange = document.querySelector('[data-stage="exchange"]');
+            var replacementProduct = document.getElementById('replacement_product_id');
+            var replacementVariant = document.getElementById('replacement_variant_id');
+            function filterReplacementVariants() {
+                if (!replacementProduct || !replacementVariant) return;
+                var productId = replacementProduct.value;
+                Array.from(replacementVariant.options).forEach(function (option, index) {
+                    if (index === 0) return;
+                    option.hidden = !!productId && option.dataset.productId !== productId;
+                });
+                var selected = replacementVariant.selectedOptions[0];
+                if (selected && selected.value && selected.dataset.productId !== productId) replacementVariant.value = '';
+            }
+            if (replacementProduct) replacementProduct.addEventListener('change', filterReplacementVariants);
+            filterReplacementVariants();
             function updateFields() {
                 var target = Number(status.value);
                 if (approval) approval.hidden = target !== {{ \App\Models\ReturnRequest::STATUS_APPROVED }};
