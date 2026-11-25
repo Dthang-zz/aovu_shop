@@ -14,6 +14,8 @@ class BannerManagementTest extends TestCase
 
     public function test_banner_list_can_be_searched_and_filtered_by_status(): void
     {
+        $this->signInAsAdmin();
+
         Banner::factory()->create([
             'ten_banner' => 'Bộ sưu tập mùa hè',
             'trang_thai' => true,
@@ -38,6 +40,8 @@ class BannerManagementTest extends TestCase
 
     public function test_banner_can_be_created_updated_and_deleted_with_its_image(): void
     {
+        $this->signInAsAdmin();
+
         Storage::fake('public');
 
         $this->get(route('admin.banners.create'))
@@ -108,6 +112,8 @@ class BannerManagementTest extends TestCase
 
     public function test_banner_validation_requires_a_name_and_a_valid_image(): void
     {
+        $this->signInAsAdmin();
+
         Storage::fake('public');
 
         $this->from(route('admin.banners.create'))
@@ -125,6 +131,8 @@ class BannerManagementTest extends TestCase
 
     public function test_banner_image_is_required_when_creating(): void
     {
+        $this->signInAsAdmin();
+
         $this->from(route('admin.banners.create'))
             ->post(route('admin.banners.store'), [
                 'ten_banner' => 'Banner chưa có ảnh',

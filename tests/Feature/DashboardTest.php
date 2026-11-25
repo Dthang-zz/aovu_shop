@@ -47,10 +47,13 @@ class DashboardTest extends TestCase
             $table->increments('id');
             $table->dateTime('ngay_tao')->nullable();
         });
+
     }
 
     public function test_dashboard_displays_live_metrics_orders_sales_and_low_stock(): void
     {
+        $this->signInAsAdmin();
+
         $today = now()->startOfDay();
         $productId = DB::table('san_phams')->insertGetId([
             'ma_san_pham' => 'DASH-001',
@@ -113,6 +116,8 @@ class DashboardTest extends TestCase
 
     public function test_dashboard_period_filters_chart_and_invalid_period_uses_default(): void
     {
+        $this->signInAsAdmin();
+
         $today = now()->startOfDay();
         DB::table('don_hangs')->insert([
             'ma_don_hang' => 'ORD-PAID',

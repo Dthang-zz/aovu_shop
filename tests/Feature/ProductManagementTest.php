@@ -4,11 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Product;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -18,6 +18,8 @@ class ProductManagementTest extends TestCase
 
     public function test_product_list_shows_saved_products_and_filters(): void
     {
+        $this->signInAsAdmin();
+
         $category = Category::create(['ten_danh_muc' => 'Áo nữ', 'trang_thai' => true]);
         Product::create([
             'ma_san_pham' => 'AO-LINEN-01',
@@ -49,6 +51,8 @@ class ProductManagementTest extends TestCase
 
     public function test_sidebar_product_count_updates_after_create_update_and_delete(): void
     {
+        $this->signInAsAdmin();
+
         $firstProduct = Product::create([
             'ma_san_pham' => 'COUNT-001',
             'ten_san_pham' => 'Sản phẩm thứ nhất',
@@ -100,6 +104,8 @@ class ProductManagementTest extends TestCase
 
     public function test_product_can_manage_multiple_images_and_product_details(): void
     {
+        $this->signInAsAdmin();
+
         Storage::fake('public');
         $category = Category::create(['ten_danh_muc' => 'Áo nữ', 'trang_thai' => true]);
 
@@ -189,6 +195,8 @@ class ProductManagementTest extends TestCase
 
     public function test_product_validation_rejects_duplicate_sku_invalid_prices_and_category(): void
     {
+        $this->signInAsAdmin();
+
         Product::create([
             'ma_san_pham' => 'SKU-EXISTS',
             'ten_san_pham' => 'Sản phẩm có sẵn',
@@ -218,6 +226,8 @@ class ProductManagementTest extends TestCase
 
     public function test_product_cannot_be_deleted_while_variants_reference_it(): void
     {
+        $this->signInAsAdmin();
+
         $product = Product::create([
             'ma_san_pham' => 'AO-HAS-VARIANTS',
             'ten_san_pham' => 'Áo có biến thể',

@@ -42,10 +42,13 @@ class ReturnRequestManagementTest extends TestCase
                 $table->string('email')->nullable();
             });
         }
+
     }
 
     public function test_return_request_list_shows_joined_details_and_filters(): void
     {
+        $this->signInAsAdmin();
+
         $this->seedOrderDetails();
         $requestId = $this->createRequest(
             ReturnRequest::TYPE_RETURN,
@@ -74,6 +77,8 @@ class ReturnRequestManagementTest extends TestCase
 
     public function test_staff_can_process_approve_and_record_refund_for_return_request(): void
     {
+        $this->signInAsAdmin();
+
         $this->seedOrderDetails();
         $requestId = $this->createRequest(ReturnRequest::TYPE_RETURN, ReturnRequest::STATUS_PENDING);
 
@@ -116,6 +121,8 @@ class ReturnRequestManagementTest extends TestCase
 
     public function test_rejection_requires_customer_feedback(): void
     {
+        $this->signInAsAdmin();
+
         $requestId = $this->createRequest(ReturnRequest::TYPE_EXCHANGE, ReturnRequest::STATUS_PENDING);
 
         $this->from(route('admin.returns.show', $requestId))
@@ -139,6 +146,8 @@ class ReturnRequestManagementTest extends TestCase
 
     public function test_status_transitions_are_restricted_and_exchange_cannot_be_refunded(): void
     {
+        $this->signInAsAdmin();
+
         $exchangeId = $this->createRequest(ReturnRequest::TYPE_EXCHANGE, ReturnRequest::STATUS_APPROVED);
 
         $this->from(route('admin.returns.show', $exchangeId))

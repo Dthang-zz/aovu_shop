@@ -24,10 +24,13 @@ class OrderManagementTest extends TestCase
                 $table->string('email')->nullable();
             });
         }
+
     }
 
     public function test_admin_can_search_and_filter_orders(): void
     {
+        $this->signInAsAdmin();
+
         $this->createOrder([
             'ma_don_hang' => 'ORD-SEARCH-1',
             'ten_nguoi_nhan' => 'Nguyen Van An',
@@ -55,6 +58,8 @@ class OrderManagementTest extends TestCase
 
     public function test_admin_can_update_and_cancel_orders_with_audited_reason(): void
     {
+        $this->signInAsAdmin();
+
         $orderId = $this->createOrder();
 
         $this->put(route('admin.orders.update', $orderId), [
@@ -108,6 +113,8 @@ class OrderManagementTest extends TestCase
 
     public function test_admin_cannot_skip_order_statuses_or_reopen_a_cancelled_order(): void
     {
+        $this->signInAsAdmin();
+
         $orderId = $this->createOrder();
 
         $this->from(route('admin.orders.show', $orderId))

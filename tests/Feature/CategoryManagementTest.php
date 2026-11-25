@@ -13,6 +13,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_list_shows_saved_categories_and_counts(): void
     {
+        $this->signInAsAdmin();
+
         $parent = Category::create([
             'ten_danh_muc' => 'Thời trang nữ',
             'trang_thai' => true,
@@ -33,6 +35,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_can_be_created_updated_and_deleted(): void
     {
+        $this->signInAsAdmin();
+
         $this->post(route('admin.categories.store'), [
             'ten_danh_muc' => 'Áo nữ',
             'danh_muc_cha_id' => '',
@@ -63,6 +67,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_validation_rejects_missing_name_and_invalid_parent(): void
     {
+        $this->signInAsAdmin();
+
         $this->from(route('admin.categories.create'))
             ->post(route('admin.categories.store'), [
                 'ten_danh_muc' => '',
@@ -77,6 +83,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_cannot_be_moved_under_its_descendant(): void
     {
+        $this->signInAsAdmin();
+
         $parent = Category::create(['ten_danh_muc' => 'Thời trang', 'trang_thai' => true]);
         $child = Category::create([
             'ten_danh_muc' => 'Áo nữ',
@@ -101,6 +109,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_in_use_cannot_be_deleted(): void
     {
+        $this->signInAsAdmin();
+
         $category = Category::create(['ten_danh_muc' => 'Áo nữ', 'trang_thai' => true]);
         DB::table('san_phams')->insert([
             'ma_san_pham' => 'AO-NU-001',
@@ -116,6 +126,8 @@ class CategoryManagementTest extends TestCase
 
     public function test_category_search_and_status_filter_work(): void
     {
+        $this->signInAsAdmin();
+
         Category::create(['ten_danh_muc' => 'Áo nữ', 'trang_thai' => true]);
         Category::create(['ten_danh_muc' => 'Áo nam', 'trang_thai' => false]);
         Category::create(['ten_danh_muc' => 'Đầm váy', 'trang_thai' => true]);

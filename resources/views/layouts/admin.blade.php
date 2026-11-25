@@ -243,7 +243,7 @@
                     <a class="nav-link" data-widget="pushmenu" href="#" role="button" aria-label="Mở hoặc thu gọn menu"><i class="fas fa-bars"></i></a>
                 </li>
                 <li class="nav-item d-none d-sm-inline-block">
-                    <a href="{{ route('admin.dashboard') }}" class="nav-link text-muted">Cửa hàng</a>
+                    <a href="{{ route('storefront.index') }}" class="nav-link text-muted">Cửa hàng</a>
                 </li>
             </ul>
             <ul class="navbar-nav ml-auto align-items-center">
@@ -267,6 +267,12 @@
                 <li class="nav-item d-none d-sm-inline-block ml-2">
                     <span class="nav-link py-1"><img src="{{ asset('adminlte/img/avatar4.png') }}" alt="Ảnh quản trị viên" class="img-circle elevation-1" width="30" height="30"></span>
                 </li>
+                <li class="nav-item">
+                    <form method="POST" action="{{ route('logout') }}" class="m-0">
+                        @csrf
+                        <button class="btn btn-link nav-link text-muted" type="submit">Đăng xuất</button>
+                    </form>
+                </li>
             </ul>
         </nav>
 
@@ -278,7 +284,7 @@
                 <div class="user-panel mt-3 pb-3 mb-2 d-flex align-items-center">
                     <div class="image"><img src="{{ asset('adminlte/img/avatar4.png') }}" class="img-circle elevation-1" alt="Quản trị viên"></div>
                     <div class="info">
-                        <a href="#" class="d-block">Quản trị viên</a>
+                        <a href="#" class="d-block">{{ auth()->user()->ho_ten }}</a>
                         <span class="text-success small"><i class="fas fa-circle" style="font-size:7px"></i> Đang hoạt động</span>
                     </div>
                 </div>

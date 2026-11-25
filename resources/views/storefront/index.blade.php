@@ -22,6 +22,10 @@
         .header-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
         .brand { font-family: Georgia, serif; font-size: 29px; font-weight: 700; letter-spacing: .06em; }
         .header-note { color: #77716c; font-size: 13px; }
+        .header-actions, .account-links { display: flex; align-items: center; gap: 14px; }
+        .account-links { font-size: 13px; white-space: nowrap; }
+        .account-links a, .account-links button { padding: 0; border: 0; background: none; color: #72523d; cursor: pointer; font: inherit; text-decoration: underline; }
+        .account-links form { margin: 0; }
         .hero { background: #f0e9e1; padding: 48px 24px; text-align: center; }
         .eyebrow { color: #8c6b55; font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
         .hero h1 { margin: 10px 0 8px; font-family: Georgia, serif; font-size: clamp(32px, 5vw, 48px); font-weight: 500; }
@@ -87,7 +91,24 @@
     <header class="site-header">
         <div class="header-inner">
             <a class="brand" href="{{ route('storefront.index') }}">{{ config('app.name', 'AOVU') }}</a>
-            <span class="header-note">Thời trang tinh giản, dành riêng cho bạn</span>
+            <div class="header-actions">
+                <span class="header-note">Thời trang tinh giản, dành riêng cho bạn</span>
+                <nav class="account-links" aria-label="Tài khoản">
+                    @auth
+                        @if (auth()->user()->isAdmin())
+                            <a href="{{ route('admin.dashboard') }}">Quản trị</a>
+                        @endif
+                        <span>{{ auth()->user()->ho_ten }}</span>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit">Đăng xuất</button>
+                        </form>
+                    @else
+                        <a href="{{ route('login') }}">Đăng nhập</a>
+                        <a href="{{ route('register') }}">Đăng ký</a>
+                    @endauth
+                </nav>
+            </div>
         </div>
     </header>
     <section class="hero">
