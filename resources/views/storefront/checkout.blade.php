@@ -509,27 +509,6 @@
                             </div>
                         @endforelse
 
-                        <div id="checkout-bank-transfer-hint" class="checkout-bank-hint" style="display:none;">
-                            <div class="checkout-bank-hint-title">Thông tin chuyển khoản AOVU Shop</div>
-                            <div class="checkout-bank-hint-row">
-                                <span>Ngân hàng</span>
-                                <strong>{{ $bankTransfer['bank_name'] ?? 'BIDV' }}</strong>
-                            </div>
-                            <div class="checkout-bank-hint-row">
-                                <span>Số tài khoản</span>
-                                <strong>{{ $bankTransfer['account_number'] ?? '' }}</strong>
-                            </div>
-                            <div class="checkout-bank-hint-row">
-                                <span>Chủ tài khoản</span>
-                                <strong>{{ $bankTransfer['account_name'] ?? '' }}</strong>
-                            </div>
-                            <p class="checkout-bank-hint-note">
-                                Sau khi nhấn “Xác nhận đặt hàng”, AOVU sẽ tạo mã QR riêng theo số tiền và mã đơn hàng.
-                                Vui lòng chuyển khoản đúng nội dung hiển thị ở bước tiếp theo. Đơn hàng chỉ được xác nhận đã
-                                thanh toán sau khi cửa hàng đối soát.
-                            </p>
-                        </div>
-
                         @error('phuong_thuc_thanh_toan_id')
                             <div class="checkout-error">{{ $message }}</div>
                         @enderror
@@ -772,7 +751,9 @@
                             'X-Requested-With': 'XMLHttpRequest',
                             'X-CSRF-TOKEN': token || ''
                         },
-                        body: new URLSearchParams({ voucher_code: code })
+                        body: new URLSearchParams({
+                            voucher_code: code
+                        })
                     });
 
                     const data = await response.json();

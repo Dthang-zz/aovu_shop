@@ -26,7 +26,8 @@ class OrderController extends Controller
                     ->orWhere('orders.ten_nguoi_nhan', 'like', "%{$term}%")
                     ->orWhere('orders.email_nguoi_nhan', 'like', "%{$term}%")
                     ->orWhere('orders.sdt_nguoi_nhan', 'like', "%{$term}%")
-                    ->orWhere('accounts.ho_ten', 'like', "%{$term}%");
+                    ->orWhere('accounts.ho_ten', 'like', "%{$term}%")
+                    ->orWhere('accounts.email', 'like', "%{$term}%");
             });
         }
 
@@ -161,17 +162,19 @@ class OrderController extends Controller
     {
         return Schema::hasTable('lich_su_trang_thai_don_hangs')
             ? DB::table('lich_su_trang_thai_don_hangs')
-                ->where('don_hang_id', $orderId)
-                ->orderByDesc('ngay_cap_nhat')
-                ->orderByDesc('id')
-                ->get()
+            ->where('don_hang_id', $orderId)
+            ->orderByDesc('ngay_cap_nhat')
+            ->orderByDesc('id')
+            ->get()
             : collect();
     }
 
     private function restockCancelledOrder(int $orderId): void
     {
-        if (! Schema::hasTable('chi_tiet_don_hangs')
-            || ! Schema::hasColumn('chi_tiet_don_hangs', 'san_pham_id')) {
+        if (
+            ! Schema::hasTable('chi_tiet_don_hangs')
+            || ! Schema::hasColumn('chi_tiet_don_hangs', 'san_pham_id')
+        ) {
             return;
         }
 

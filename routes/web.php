@@ -14,13 +14,27 @@ use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SupportChatController as AdminSupportChatController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\SupportChatController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', DashboardController::class);
-Route::get('/admin', DashboardController::class)->name('admin.dashboard');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'loginForm'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.store');
+    Route::get('/register', [AuthController::class, 'registerForm'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1')->name('register.store');
+});
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::middleware('auth')->group(function () {
+    Route::get('/account', [AuthController::class, 'profile'])->name('account.profile');
+    Route::put('/account', [AuthController::class, 'updateProfile'])->name('account.profile.update');
+    Route::put('/account/password', [AuthController::class, 'updatePassword'])->name('account.password.update');
+});
+
+Route::redirect('/', '/shop');
+
 
 Route::get('/shop', [StorefrontController::class, 'index'])->name('shop.products.index');
 Route::get('/shop/{product}', [StorefrontController::class, 'show'])
@@ -49,6 +63,8 @@ Route::post('/support-chat/messages', [SupportChatController::class, 'store'])
     ->middleware('throttle:30,1')
     ->name('support-chat.store');
 
+Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::get('/admin', DashboardController::class)->name('admin.dashboard');
 Route::prefix('/admin/support-chat')->name('admin.support-chat.')->group(function () {
     Route::get('/', [AdminSupportChatController::class, 'index'])->name('index');
     Route::get('/customers', [AdminSupportChatController::class, 'customers'])->name('customers');
@@ -176,3 +192,5 @@ Route::resource('/admin/news-categories', NewsCategoryController::class)
     ->parameters(['news-categories' => 'newsCategory'])
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->names('admin.news-categories');
+
+}); // Admin routes protected by authentication and Admin role.

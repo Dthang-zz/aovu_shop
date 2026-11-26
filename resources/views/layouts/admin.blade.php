@@ -277,6 +277,11 @@
                 <li class="nav-item d-none d-sm-inline-block ml-2">
                     <span class="nav-link py-1"><img src="{{ asset('adminlte/img/avatar4.png') }}"
                             alt="Ảnh quản trị viên" class="img-circle elevation-1" width="30" height="30"></span>
+                <li class="nav-item ml-2">
+                    <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf
+                        <button type="submit" class="btn btn-sm btn-outline-secondary mt-1" title="Đăng xuất"><i class="fas fa-sign-out-alt"></i></button>
+                    </form>
+                </li>
                 </li>
             </ul>
         </nav>
@@ -291,7 +296,7 @@
                     <div class="image"><img src="{{ asset('adminlte/img/avatar4.png') }}"
                             class="img-circle elevation-1" alt="Quản trị viên"></div>
                     <div class="info">
-                        <a href="#" class="d-block">Quản trị viên</a>
+                        <a href="#" class="d-block">{{ auth()->user()->ho_ten ?? 'Quản trị viên' }}</a>
                         <span class="text-success small"><i class="fas fa-circle" style="font-size:7px"></i> Đang hoạt
                             động</span>
                     </div>

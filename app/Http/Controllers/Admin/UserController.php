@@ -102,17 +102,17 @@ class UserController extends Controller
 
         $reviews = Schema::hasTable('danh_gias')
             ? DB::table('danh_gias as reviews')
-                ->leftJoin('san_phams as products', 'products.id', '=', 'reviews.san_pham_id')
-                ->where('reviews.tai_khoan_id', $user->getKey())
-                ->orderByDesc('reviews.ngay_dang')
-                ->orderByDesc('reviews.id')
-                ->get([
-                    'reviews.so_sao',
-                    'reviews.noi_dung',
-                    'reviews.ngay_dang',
-                    'reviews.trang_thai',
-                    'products.ten_san_pham',
-                ])
+            ->leftJoin('san_phams as products', 'products.id', '=', 'reviews.san_pham_id')
+            ->where('reviews.tai_khoan_id', $user->getKey())
+            ->orderByDesc('reviews.ngay_dang')
+            ->orderByDesc('reviews.id')
+            ->get([
+                'reviews.so_sao',
+                'reviews.noi_dung',
+                'reviews.ngay_dang',
+                'reviews.trang_thai',
+                'products.ten_san_pham',
+            ])
             : collect();
 
         return view('admin.users.show', [
@@ -210,6 +210,12 @@ class UserController extends Controller
 
     public function destroy(TaiKhoan $user): RedirectResponse
     {
+        if (auth()->id() === $user->getKey()) {
+            return redirect()->route('admin.users.index')->with('error', 'Bạn không thể xóa tài khoản đang đăng nhập.');
+        }
+        if ($user->chucVu?->ten_chuc_vu === 'Admin') {
+            return redirect()->route('admin.users.index')->with('error', 'Không thể xóa tài khoản quản trị tại đây.');
+        }
         $blockMessage = DB::transaction(function () use ($user): ?string {
             $lockedUser = DB::table('tai_khoans')
                 ->where('id', $user->getKey())
@@ -220,27 +226,31 @@ class UserController extends Controller
                 return 'Khách hàng không còn tồn tại.';
             }
 
-            if (Schema::hasTable('don_hangs')
-                && DB::table('don_hangs')->where('tai_khoan_id', $user->getKey())->exists()) {
+            if (
+                Schema::hasTable('don_hangs')
+                && DB::table('don_hangs')->where('tai_khoan_id', $user->getKey())->exists()
+            ) {
                 return 'Khách hàng đã có đơn hàng nên không thể xóa trực tiếp. Hãy khóa tài khoản để giữ lịch sử giao dịch.';
             }
 
-            if (Schema::hasTable('yeu_cau_doi_tras')
+            if (
+                Schema::hasTable('yeu_cau_doi_tras')
                 && Schema::hasColumn('yeu_cau_doi_tras', 'tai_khoan_id')
                 && Schema::hasColumn('yeu_cau_doi_tras', 'trang_thai')
                 && DB::table('yeu_cau_doi_tras')
-                    ->where('tai_khoan_id', $user->getKey())
-                    ->whereIn('trang_thai', [
-                        ReturnRequest::STATUS_PENDING,
-                        ReturnRequest::STATUS_PROCESSING,
-                        ReturnRequest::STATUS_APPROVED,
-                        ReturnRequest::STATUS_AWAITING_RETURN,
-                        ReturnRequest::STATUS_RETURN_RECEIVED,
-                        ReturnRequest::STATUS_INSPECTED,
-                        ReturnRequest::STATUS_REFUNDED,
-                        ReturnRequest::STATUS_EXCHANGE_SHIPPED,
-                    ])
-                    ->exists()) {
+                ->where('tai_khoan_id', $user->getKey())
+                ->whereIn('trang_thai', [
+                    ReturnRequest::STATUS_PENDING,
+                    ReturnRequest::STATUS_PROCESSING,
+                    ReturnRequest::STATUS_APPROVED,
+                    ReturnRequest::STATUS_AWAITING_RETURN,
+                    ReturnRequest::STATUS_RETURN_RECEIVED,
+                    ReturnRequest::STATUS_INSPECTED,
+                    ReturnRequest::STATUS_REFUNDED,
+                    ReturnRequest::STATUS_EXCHANGE_SHIPPED,
+                ])
+                ->exists()
+            ) {
                 return 'Khách hàng có yêu cầu đổi/trả đang xử lý nên không thể xóa. Hãy xử lý yêu cầu hoặc khóa tài khoản.';
             }
 
@@ -250,15 +260,19 @@ class UserController extends Controller
                 }
             }
 
-            if (Schema::hasTable('yeu_cau_doi_tras')
-                && Schema::hasColumn('yeu_cau_doi_tras', 'tai_khoan_id')) {
+            if (
+                Schema::hasTable('yeu_cau_doi_tras')
+                && Schema::hasColumn('yeu_cau_doi_tras', 'tai_khoan_id')
+            ) {
                 DB::table('yeu_cau_doi_tras')
                     ->where('tai_khoan_id', $user->getKey())
                     ->update(['tai_khoan_id' => null]);
             }
 
-            if (Schema::hasTable('lich_su_trang_thai_don_hangs')
-                && Schema::hasColumn('lich_su_trang_thai_don_hangs', 'nguoi_cap_nhat_id')) {
+            if (
+                Schema::hasTable('lich_su_trang_thai_don_hangs')
+                && Schema::hasColumn('lich_su_trang_thai_don_hangs', 'nguoi_cap_nhat_id')
+            ) {
                 DB::table('lich_su_trang_thai_don_hangs')
                     ->where('nguoi_cap_nhat_id', $user->getKey())
                     ->update(['nguoi_cap_nhat_id' => null]);
@@ -282,6 +296,12 @@ class UserController extends Controller
 
     public function toggleStatus(TaiKhoan $user): RedirectResponse
     {
+        if (auth()->id() === $user->getKey()) {
+            return redirect()->route('admin.users.index')->with('error', 'Bạn không thể tự khóa tài khoản đang đăng nhập.');
+        }
+        if ($user->chucVu?->ten_chuc_vu === 'Admin') {
+            return redirect()->route('admin.users.index')->with('error', 'Không thể khóa tài khoản quản trị tại đây.');
+        }
         $user->update(['trang_thai' => ! $user->trang_thai]);
 
         $msg = $user->trang_thai
