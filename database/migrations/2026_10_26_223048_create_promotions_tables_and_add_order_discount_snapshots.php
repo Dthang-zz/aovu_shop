@@ -11,32 +11,54 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('promotions', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('ten_chuong_trinh', 255);
-            $table->decimal('phan_tram_giam', 5, 2);
-            $table->dateTime('ngay_bat_dau');
-            $table->dateTime('ngay_ket_thuc');
-            $table->boolean('trang_thai')->default(true);
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('promotions')) {
+            Schema::create('promotions', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('ten_chuong_trinh', 255);
+                $table->decimal('phan_tram_giam', 5, 2);
+                $table->dateTime('ngay_bat_dau');
+                $table->dateTime('ngay_ket_thuc');
+                $table->boolean('trang_thai')->default(true);
+                $table->timestamps();
+            });
+        }
 
-        Schema::create('promotion_products', function (Blueprint $table) {
-            $table->unsignedInteger('promotion_id');
-            $table->unsignedInteger('product_id');
+        $productIdIsUnsigned = $this->productIdIsUnsigned();
 
-            $table->primary(['promotion_id', 'product_id']);
+        if (! Schema::hasTable('promotion_products')) {
+            Schema::create('promotion_products', function (Blueprint $table) use ($productIdIsUnsigned) {
+                $table->unsignedInteger('promotion_id');
+                $table->integer('product_id', unsigned: $productIdIsUnsigned);
 
-            $table->foreign('promotion_id')
-                ->references('id')
-                ->on('promotions')
-                ->cascadeOnDelete();
+                $table->primary(['promotion_id', 'product_id']);
 
-            $table->foreign('product_id')
-                ->references('id')
-                ->on('san_phams')
-                ->cascadeOnDelete();
-        });
+                $table->foreign('promotion_id')
+                    ->references('id')
+                    ->on('promotions')
+                    ->cascadeOnDelete();
+
+                $table->foreign('product_id')
+                    ->references('id')
+                    ->on('san_phams')
+                    ->cascadeOnDelete();
+            });
+        } else {
+            Schema::table('promotion_products', function (Blueprint $table) use ($productIdIsUnsigned) {
+                $table->integer('product_id', unsigned: $productIdIsUnsigned)->change();
+            });
+
+            $hasProductForeignKey = collect(Schema::getForeignKeys('promotion_products'))
+                ->contains(fn (array $foreignKey): bool => $foreignKey['columns'] === ['product_id']);
+
+            if (! $hasProductForeignKey) {
+                Schema::table('promotion_products', function (Blueprint $table) {
+                    $table->foreign('product_id')
+                        ->references('id')
+                        ->on('san_phams')
+                        ->cascadeOnDelete();
+                });
+            }
+        }
 
         if (Schema::hasTable('don_hangs')) {
             Schema::table('don_hangs', function (Blueprint $table) {
@@ -73,6 +95,16 @@ return new class extends Migration
                 }
             });
         }
+    }
+
+    /**
+     * Match san_phams.id, which is a signed INT when the table comes from the aovu_shop.sql dump.
+     */
+    private function productIdIsUnsigned(): bool
+    {
+        $idColumn = collect(Schema::getColumns('san_phams'))->firstWhere('name', 'id');
+
+        return $idColumn === null || str_contains(strtolower((string) $idColumn['type']), 'unsigned');
     }
 
     /**
